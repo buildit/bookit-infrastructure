@@ -153,7 +153,7 @@ Resources:
         #     Value: !Ref AWS::Region
         #   - Name: REPOSITORY_URI
         #     Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
-      Name: !Join [ '-', [ !Ref AppStackName, 'build' ] ]
+      Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, 'build' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
   Pipeline:

@@ -21,7 +21,7 @@ deps:
 	@./cloudformation/scripts/create-buckets.sh
 
 # Destroy dependency S3 buckets, only destroy if empty
-destroy-deps:
+delete-deps:
 	@./cloudformation/scripts/destroy-buckets.sh
 
 ## Create IAM user used for building the application
@@ -93,8 +93,8 @@ create-build: upload-build
 		--parameters \
 			"ParameterKey=AppStackName,ParameterValue=${OWNER}-${PROJECT}" \
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
-			"ParameterKey=GitHubRepo,ParameterValue=bookit-api" \
-			"ParameterKey=GitHubBranch,ParameterValue=master" \
+			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
+			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
 		--tags \
 			"Key=Email,Value=${EMAIL}" \
@@ -156,7 +156,6 @@ update-app: upload-app
 
 ## Updates existing Build CF stack
 update-build: upload-build
-
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/app/main.yaml" \
