@@ -1,6 +1,6 @@
 # AWS The Rig
 
-This setup will create a CloudFormation, GoCD powered Rig on AWS.
+This setup will create a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.
 
 ## Setup
 
@@ -39,10 +39,12 @@ This is the Stack that will be shared by all management and services in an AWS R
 
   * Run `make status-foundation` to check status of the stack. (Should be `CREATE_COMPLETE`)
   * Check the outputs as well with `make outputs-foundation`
+  * Run `make create-build`, same options for status: `make status-build` and outputs `make outputs-build`
   * Run `make create-app`, same options for status: `make status-app` and outputs `make outputs-app`
 
 
 To delete everything, in order:
 
   * Run `make delete-app` to delete the App stack.
+  * Run `make delete-build` to delete the Build stack.
   * Run `make delete-foundation` to delete the Foundation stack.
