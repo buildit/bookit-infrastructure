@@ -156,12 +156,16 @@ update-app: upload-app
 
 ## Updates existing Build CF stack
 update-build: upload-build
-	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app" \
+	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build" \
                 --region ${REGION} \
-		--template-body "file://cloudformation/app/main.yaml" \
+		--template-body "file://cloudformation/build/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
+			"ParameterKey=AppStackName,ParameterValue=${OWNER}-${PROJECT}" \
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
+			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
+			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
+			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
 		--tags \
 			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
