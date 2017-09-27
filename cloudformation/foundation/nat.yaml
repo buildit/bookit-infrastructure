@@ -1,0 +1,88 @@
+---
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: NAT setup
+
+Parameters:
+  Environment:
+    Description: Environment name
+    Type: String
+
+  FoundationStackName:
+    Description: Foundation stack name
+    Type: String
+
+Resources:
+
+  ##
+  # NAT for private subnet A
+  NatEipA:
+    Type: AWS::EC2::EIP
+
+  NatA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        !GetAtt NatEipA.AllocationId
+      SubnetId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPublicA"
+
+  NatARouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NatA
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateA"
+
+  ##
+  # NAT for private subnet B
+  NatEipB:
+    Type: AWS::EC2::EIP
+
+  NatB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        !GetAtt NatEipB.AllocationId
+      SubnetId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPublicB"
+
+  NatBRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NatB
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateB"
+
+Outputs:
+  NatEipA:
+    Description: Nat EIP A
+    Export:
+      Name: !Sub "${FoundationStackName}-NatEipA"
+    Value:
+      Ref: NatEipA
+
+  NatEipAllocationIdA:
+    Description: Nat EIP Allocation Id A
+    Export:
+      Name: !Sub "${FoundationStackName}--NatEipAllocationIdA"
+    Value:
+      !GetAtt NatEipA.AllocationId
+
+  NatEipB:
+    Description: Nat EIP B
+    Export:
+      Name: !Sub "${FoundationStackName}--NatEipB"
+    Value:
+      Ref: NatEipB
+
+  NatEipAllocationIdB:
+    Description: Nat EIP Allocation Id B
+    Export:
+      Name: !Sub "${FoundationStackName}--NatEipAllocationIdB"
+    Value:
+      !GetAtt NatEipB.AllocationId

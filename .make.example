@@ -1,0 +1,8 @@
+DOMAIN = example.tld
+EMAIL = jdoe@example.com
+ENV = dev
+KEY_NAME = username-us-east-1-keypair
+OWNER = jdoe
+PROFILE = default
+PROJECT = mycoolproject
+REGION = us-east-1

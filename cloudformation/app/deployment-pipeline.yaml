@@ -1,0 +1,283 @@
+---
+
+Description: Deployment Pipeline
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  AppStackName:
+    Type: String
+
+  BuildArtifactsBucket:
+    Type: String
+
+  InfraDevBucket:
+    Type: String
+
+  Cluster:
+    Type: String
+
+  RepositoryName:
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
+    Description: The name of the CodeCommit repo
+    Type: String
+
+  RepositoryBranch:
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
+    Default: master
+    Description: The name of the branch for the CodeCommit repo
+    Type: String
+
+  RepositoryAuthToken:
+    Description: The OAuth token required to obtain sources from your repo.
+    Type: String
+    NoEcho: true
+
+  TargetGroup:
+    Type: String
+
+
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    # Hate to do this, but this *will* cause stack-deletion errors if the repo
+    # has any images in it, which any self-respecting repo will have.
+    Properties:
+      RepositoryName: !Join [ '-', [ !Ref AppStackName, 'ecr', 'repo' ] ]
+
+  CloudFormationExecutionRole:
+    Type: AWS::IAM::Role
+    # Hate to do this, but if stack deletion fails after this role has been deleted
+    # then you'll never be able to complete deletion of the service stack.
+    DeletionPolicy: Retain
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "cloudformation.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - ecs:*
+                  - ecr:*
+                  - iam:*
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "codebuild.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ecr:GetAuthorizationToken
+              - Resource: !Sub arn:aws:s3:::${BuildArtifactsBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+              - Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}
+                Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+              # TODO:  this needs to be tightened-up.
+              - Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+                Effect: Allow
+                Action:
+                  - ssm:GetParameters
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "codepipeline.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource:
+                  - !Sub arn:aws:s3:::${BuildArtifactsBucket}
+                  - !Sub arn:aws:s3:::${BuildArtifactsBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource:
+                  - !Sub arn:aws:s3:::${InfraDevBucket}
+                  - !Sub arn:aws:s3:::${InfraDevBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource:
+                  - "*"
+                Effect: Allow
+                Action:
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:UploadArchive
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:CancelUploadArchive
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                  - cloudformation:*
+                  - iam:PassRole
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Location: !Ref BuildArtifactsBucket
+        Type: "S3"
+      Source:
+        Location: !Sub ${BuildArtifactsBucket}/${AppStackName}.zip
+        Type: "S3"
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/docker:1.12.1"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+      Name: !Join [ '-', [ !Ref AppStackName, 'build' ] ]
+      ServiceRole: !Ref CodeBuildServiceRole
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref BuildArtifactsBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: App
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              Configuration:
+                Repo: !Ref RepositoryName
+                Branch: !Ref RepositoryBranch
+                Owner: buildit
+                OAuthToken: !Ref RepositoryAuthToken
+              OutputArtifacts:
+                - Name: App
+              RunOrder: 1
+            - Name: Template
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              OutputArtifacts:
+                - Name: Template
+              RunOrder: 1
+              Configuration:
+                S3Bucket: !Ref InfraDevBucket
+                S3ObjectKey: !Sub "${AppStackName}/templates/templates.zip"
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: App
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ChangeSetName: Deploy
+                ActionMode: CREATE_UPDATE
+                StackName: !Sub "${AppStackName}-Service"
+                Capabilities: CAPABILITY_NAMED_IAM
+                TemplatePath: Template::service.yaml
+                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+                ParameterOverrides: !Sub |
+                  {
+                    "Tag" : { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
+                    "DesiredCount": "1",
+                    "Cluster": "${Cluster}",
+                    "TargetGroup": "${TargetGroup}",
+                    "Repository": "${Repository}"
+                  }
+              InputArtifacts:
+                - Name: Template
+                - Name: BuildOutput
+              RunOrder: 1
+
+Outputs:
+  PipelineUrl:
+    Description: Pipeline Url
+    Value: !Join
+      - ''
+      - - 'https://console.aws.amazon.com/codepipeline/home?region='
+        - !Ref 'AWS::Region'
+        - '#/view/'
+        - !Ref Pipeline

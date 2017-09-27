@@ -1,0 +1,113 @@
+---
+
+Description: Service definition
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  Tag:
+    Type: String
+    Default: latest
+
+  DesiredCount:
+    Type: Number
+    Default: 0
+
+  TargetGroup:
+    Type: String
+
+  Cluster:
+    Type: String
+
+  Repository:
+    Type: String
+
+  BookitApiDomainName:
+    Type: String
+    Default: example.com
+
+  ContainerPort:
+    Type: Number
+
+  ParameterStoreNamespace:
+    Type: String
+
+Resources:
+  ECSServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "ecs.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole
+
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref Cluster
+      Role: !Ref ECSServiceRole
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref TaskDefinition
+      LoadBalancers:
+        - ContainerName: app-deployment
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref TargetGroup
+
+
+  TaskDefinitionServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "ecs-tasks.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # TODO:  this needs to be tightened-up.
+              - Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+                Effect: Allow
+                Action:
+                  - ssm:GetParameters
+
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-app-deployment
+      TaskRoleArn: !Ref TaskDefinitionServiceRole
+      ContainerDefinitions:
+        - Name: app-deployment
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}:${Tag}
+          Command:
+            - /bin/sh
+            - ./run-in-aws.sh #special bootstrapping startup that pulls secrets from SSM parameter store
+          Essential: true
+          Memory: 128
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              HostPort: 0
+          Environment:
+            - Name: Tag
+              Value: !Ref Tag
+            - Name: USE_AZURE
+              Value: true
+            - Name: ACTUAL_BOOKIT_API_URL  # This is the actual/true HTTP URL of the running service (DNS Name-based).
+              Value: !Ref BookitApiDomainName
+            - Name: BOOKIT_API_BASE_URL   # This is a logical URL used by the Bookit app itself to define the endpoint it talks to.
+              Value: /api  # Mapped to the ACTUAL_BOOKIT_API_URL via a reverse proxy config in nginx.
+            - Name: PARAMETER_STORE_NAMESPACE
+              Value: !Ref ParameterStoreNamespace

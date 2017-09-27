@@ -1,0 +1,103 @@
+---
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS Foundation Template
+
+
+Parameters:
+  AvailabilityZones:
+    Default: us-east-1a,us-east-1b
+    Description: Comma-delimited list of availabilty zones
+    Type: CommaDelimitedList
+
+  CidrBlock:
+    Default: 10.1.0.0/16
+    Description: VPC Cidr Block
+    Type: String
+
+  Environment:
+    Default: tst
+    Description: Stack environment
+    Type: String
+
+  FoundationBucket:
+    Default: rig.awsrig.dmacedo.foundation
+    Description: Foundation S3 Bucket
+    Type: String
+
+  ProjectName:
+    Default: awsrig
+    Description: Project name
+    Type: String
+
+  PublicDomainName:
+    Description: Public Domain Name for sites and services created by this stack.
+    Type: String
+
+  Region:
+    Default: us-east-1
+    Description: Region
+    Type: String
+
+  SubnetPrivateCidrBlocks:
+    Default: "10.1.11.0/24,10.1.12.0/24"
+    Description: Comma-delimited list of two CIDR blocks for private subnets
+    Type: CommaDelimitedList
+
+  SubnetPublicCidrBlocks:
+    Default: "10.1.1.0/24,10.1.2.0/24"
+    Description: Comma-delimited list of two CIDR blocks for public subnets
+    Type: CommaDelimitedList
+
+  CreateHostedZone:
+    Default: no
+    Description: Whether a new Route 53 hosted zone should be created for this stack.
+    Type: String
+    AllowedValues:
+      - no
+      - yes
+
+Conditions:
+  ShouldCreateHostedZone: !Equals [ !Ref CreateHostedZone, yes ]
+
+Resources:
+  Vpc:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        CidrBlock: !Ref CidrBlock
+        Environment: !Ref Environment
+        FoundationStackName: !Sub ${AWS::StackName}
+        Region: !Ref Region
+        SubnetPrivateCidrBlocks: !Join [ ",", !Ref SubnetPrivateCidrBlocks ]
+        SubnetPublicCidrBlocks: !Join [ ",", !Ref SubnetPublicCidrBlocks ]
+      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/vpc.yaml
+      TimeoutInMinutes: 60
+
+  Dns:
+    Condition: ShouldCreateHostedZone
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Environment: !Ref Environment
+        FoundationStackName: !Sub ${AWS::StackName}
+        PublicDomainName: !Ref PublicDomainName
+      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/dns.yaml
+      TimeoutInMinutes: 60
+
+  Nat:
+    DependsOn:
+      - Vpc
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        Environment: !Ref Environment
+        FoundationStackName: !Sub ${AWS::StackName}
+      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/nat.yaml
+      TimeoutInMinutes: 60
+
+
+Outputs:
+  FoundationVpcId:
+    Description: VPC Id
+    Value: !GetAtt Vpc.Outputs.VpcId

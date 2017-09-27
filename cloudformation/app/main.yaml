@@ -1,0 +1,179 @@
+---
+
+Description: Application Deployment on ECS
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  AppName:
+    Default: twig
+    Description: Application name
+    Type: String
+
+  AppStackName:
+    Description: App stack name
+    Type: String
+
+  BuildArtifactsBucket:
+    Default: rig.awsrig.dmacedo.build
+    Description: Build Artifacts S3 Bucket
+    Type: String
+
+  Environment:
+    Default: tst
+    Description: Stack environment
+    Type: String
+
+  EcsClusterSize:
+    Type: Number
+    Default: 1
+
+  FoundationStackName:
+    Description: Foundation stack name
+    Type: String
+
+  InfraDevBucket:
+    Description: App S3 Bucket
+    Type: String
+
+  ProjectName:
+    Default: awsrig
+    Description: Project name
+    Type: String
+
+  RepositoryName:
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
+    Description: The name of the CodeCommit repo
+    Type: String
+
+  RepositoryBranch:
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
+    Default: master
+    Description: The name of the branch for the CodeCommit repo
+    Type: String
+
+  RepositoryAuthToken:
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
+    Description: The OAuth (or whatever) token required to obtain sources from your repo.
+    Type: String
+    NoEcho: true
+
+  Region:
+    Default: us-east-1
+    Description: Region
+    Type: String
+
+  EcsInstanceType:
+    Default: t2.medium
+    Description: Instance type of ECS cluster instance(s)
+    Type: String
+
+  SshKeyName:
+    Description: Name of keypair to use with managed instances.
+    Type: AWS::EC2::KeyPair::KeyName
+
+  UserName:
+    Description: User FirstLastName
+    Type: String
+
+  PublicDomainName:
+    Description: Public Domain Name for sites and services created by this stack.
+    Type: String
+
+  BuildUserAccessKeySerial:
+    Description: Increment this value by one to rotate the build user key.
+    Type: Number
+    Default: 0
+
+  ParameterStoreNamespace:
+    Description: Namespace in parameter store from which configuration values will be taken.
+    Type: String
+
+  ServerRepository:
+    Description: Cluster repository name for bookit server
+    Type: String
+
+  WebRepository:
+    Description: Cluster repository name for bookit web
+    Type: String
+
+Resources:
+
+  ServerLoadBalancer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
+      Parameters:
+        AppStackName: !Sub ${AppStackName}-server
+        FoundationStackName: !Ref FoundationStackName
+        DnsHostedZoneName: !Ref PublicDomainName
+        DnsSubdomainName: !Sub ${Environment}-bookit-server
+
+  WebLoadBalancer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
+      Parameters:
+        AppStackName: !Sub ${AppStackName}-web
+        FoundationStackName: !Ref FoundationStackName
+        DnsHostedZoneName: !Ref PublicDomainName
+        DnsSubdomainName: !Sub ${Environment}-bookit-web
+
+  Cluster:
+    DependsOn:
+      - ServerLoadBalancer
+      - WebLoadBalancer
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/ecs-cluster.yaml
+      Parameters:
+        AppStackName: !Ref AppStackName
+        FoundationStackName: !Ref FoundationStackName
+        ServerSourceSecurityGroup: !GetAtt ServerLoadBalancer.Outputs.SecurityGroup
+        WebSourceSecurityGroup: !GetAtt WebLoadBalancer.Outputs.SecurityGroup
+        InstanceType: !Ref EcsInstanceType
+        ClusterSize: !Ref EcsClusterSize
+        SshKeyName: !Ref SshKeyName
+
+  BookitServerService:
+    DependsOn:
+      - Cluster
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
+      Parameters:
+        Tag: latest
+        DesiredCount: 0
+        Cluster: !GetAtt Cluster.Outputs.ClusterName
+        TargetGroup: !GetAtt ServerLoadBalancer.Outputs.TargetGroup
+        Repository: !Ref ServerRepository
+        ContainerPort: 8888
+        ParameterStoreNamespace: !Ref ParameterStoreNamespace
+
+  BookitWebService:
+    DependsOn:
+      - Cluster
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
+      Parameters:
+        Tag: latest
+        DesiredCount: 0
+        Cluster: !GetAtt Cluster.Outputs.ClusterName
+        TargetGroup: !GetAtt WebLoadBalancer.Outputs.TargetGroup
+        Repository: !Ref WebRepository
+        ContainerPort: 80
+        ParameterStoreNamespace: !Ref ParameterStoreNamespace
+        BookitApiDomainName: !Sub https://${Environment}-bookit-server.${PublicDomainName}
+
+Outputs:
+
+  ServerLoadBalancerUrl:
+    Description: URL of the load balancer for the sample service.
+    Value: !GetAtt ServerLoadBalancer.Outputs.ServiceUrl
+
+  WebLoadBalancerUrl:
+    Description: URL of the load balancer for the sample service.
+    Value: !GetAtt WebLoadBalancer.Outputs.ServiceUrl

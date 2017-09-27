@@ -1,0 +1,40 @@
+---
+
+Description: Public DNS
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  Environment:
+    Description: Environment name
+    Type: String
+
+  FoundationStackName:
+    Description: Foundation stack name
+    Type: String
+
+  PublicDomainName:
+    Description: Public Domain Name for sites and services created by this stack.
+    Type: String
+
+Resources:
+  PublicDns:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      HostedZoneConfig:
+        Comment: !Sub "${FoundationStackName} Public DNS"
+      Name:
+        Ref: PublicDomainName
+
+Outputs:
+  ZoneId:
+    Description: Zone ID
+    Export:
+      Name: !Sub "${FoundationStackName}--ZoneId"
+    Value:
+      Ref: PublicDns
+  FQDN:
+    Description: Fully Qualified Domain Name
+    Export:
+      Name: !Sub "${FoundationStackName}--TLDN"
+    Value:
+      Ref: PublicDomainName

@@ -1,0 +1,266 @@
+---
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC with 2 public and 2 private subnets
+
+Parameters:
+  CidrBlock:
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3}).(\\d{1,3}).(\\d{1,3})\\/(\\d{1,2})"
+    ConstraintDescription: Full Cidr block with mask bits
+    Default: 10.1.0.0/16
+    Description: VPC Cidr Block
+    Type: String
+
+  Environment:
+    Description: Stack environment
+    Type: String
+
+  FoundationStackName:
+    Description: Foundation Stack Name
+    Type: String
+
+  Region:
+    Description: Region
+    Type: String
+
+  SubnetPrivateCidrBlocks:
+    Description: Comma-delimited list of two CIDR blocks for private subnets
+    Type: CommaDelimitedList
+
+  SubnetPublicCidrBlocks:
+    Description: Comma-delimited list of two CIDR blocks for public subnets
+    Type: CommaDelimitedList
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: CidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${FoundationStackName}--VPC"
+
+  InternalDns:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      HostedZoneConfig:
+        Comment: !Sub "${FoundationStackName} VPC Internal DNS"
+      Name: internal
+      VPCs:
+        - VPCId:
+            Ref: VPC
+          VPCRegion:
+            Ref: Region
+
+  SubnetPublicA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      CidrBlock: !Select [ 0, !Ref SubnetPublicCidrBlocks ]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${FoundationStackName}--SubnetPublicA"
+
+  SubnetPrivateA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      CidrBlock: !Select [ 0, !Ref SubnetPrivateCidrBlocks ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${FoundationStackName}--SubnetPrivateA"
+
+  SubnetPublicB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      CidrBlock: !Select [ 1, !Ref SubnetPublicCidrBlocks ]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${FoundationStackName}--SubnetPublicB"
+
+  SubnetPrivateB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPC
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      CidrBlock: !Select [ 1, !Ref SubnetPrivateCidrBlocks ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${FoundationStackName}--SubnetPrivateB"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+
+  RouteTablePrivateA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${FoundationStackName}--RouteTablePrivateA"
+      VpcId:
+        Ref: VPC
+
+  SubnetPrivateARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: SubnetPrivateA
+      RouteTableId:
+        Ref: RouteTablePrivateA
+
+  RouteTablePrivateB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${FoundationStackName}--RouteTablePrivateB"
+      VpcId:
+        Ref: VPC
+
+  SubnetPrivateBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: SubnetPrivateB
+      RouteTableId:
+        Ref: RouteTablePrivateB
+
+  RouteTablePublic:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${FoundationStackName}--RouteTablePublic"
+      VpcId:
+        Ref: VPC
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+      RouteTableId:
+        Ref: RouteTablePublic
+
+  SubnetPublicARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RouteTablePublic
+      SubnetId:
+        Ref: SubnetPublicA
+
+  SubnetPublicBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: RouteTablePublic
+      SubnetId:
+        Ref: SubnetPublicB
+
+Outputs:
+  CidrBlock:
+    Description: The CidrBlock of the VPC
+    Export:
+      Name: !Sub "${FoundationStackName}--CidrBlock"
+    Value:
+      Ref: CidrBlock
+
+  InternalDns:
+    Description: The ID of the private Route53
+    Export:
+      Name: !Sub "${FoundationStackName}--InternalDns"
+    Value:
+      Ref: InternalDns
+
+  InternetGateway:
+    Description: The ID of the newly created Internet Gateway
+    Export:
+      Name: !Sub "${FoundationStackName}--InternetGateway"
+    Value:
+      Ref: InternetGateway
+
+  RouteTablePrivateA:
+    Description: The ID of the Private RT A
+    Export:
+      Name: !Sub "${FoundationStackName}--RouteTablePrivateA"
+    Value:
+      Ref: RouteTablePrivateA
+
+  RouteTablePrivateB:
+    Description: The ID of the Private RT B
+    Export:
+      Name: !Sub "${FoundationStackName}--RouteTablePrivateB"
+    Value:
+      Ref: RouteTablePrivateB
+
+  RouteTablePublic:
+    Description: The ID of the Public RT
+    Export:
+      Name: !Sub "${FoundationStackName}--RouteTablePublic"
+    Value:
+      Ref: RouteTablePublic
+
+  SubnetPrivateA:
+    Description: The ID of the newly created Private Subnet in zone A
+    Export:
+      Name: !Sub "${FoundationStackName}--SubnetPrivateA"
+    Value:
+      Ref: SubnetPrivateA
+
+  SubnetPrivateB:
+    Description: The ID of the newly created Private Subnet in zone B
+    Export:
+      Name: !Sub "${FoundationStackName}--SubnetPrivateB"
+    Value:
+      Ref: SubnetPrivateB
+
+  SubnetPublicA:
+    Description: The ID of the newly created Public Subnet in zone A
+    Export:
+      Name: !Sub "${FoundationStackName}--SubnetPublicA"
+    Value:
+      Ref: SubnetPublicA
+
+  SubnetPublicB:
+    Description: The ID of the newly created Public Subnet in zone B
+    Export:
+      Name: !Sub "${FoundationStackName}--SubnetPublicB"
+    Value:
+      Ref: SubnetPublicB
+
+  SubnetsPublic:
+    Description: The ID of the newly created Public Subnet in zone A
+    Export:
+      Name: !Sub "${FoundationStackName}--SubnetsPublic"
+    Value: !Sub "${SubnetPublicA},${SubnetPublicB}"
+
+  VpcId:
+    Description: The ID of the newly created VPC
+    Export:
+      Name: !Sub "${FoundationStackName}--VpcId"
+    Value:
+      Ref: VPC
