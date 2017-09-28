@@ -233,7 +233,7 @@ Resources:
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                     "Cluster": "aochsner-bookit-dev-ECSCluster",
                     "Repository": "${Repository}",
-                    "ContainerPort": "8888",
+                    "ContainerPort": "8080",
                     "TargetGroup":  "arn:aws:elasticloadbalancing:us-east-1:006393696278:targetgroup/aochs-Targe-1GSS2QL3ZT9T2/09824de9998bd34f"
                   }
               InputArtifacts:

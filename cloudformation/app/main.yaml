@@ -149,7 +149,7 @@ Resources:
         Cluster: !GetAtt Cluster.Outputs.ClusterName
         TargetGroup: !GetAtt ServerLoadBalancer.Outputs.TargetGroup
         Repository: !Ref ServerRepository
-        ContainerPort: 8888
+        ContainerPort: 8080
 #        ParameterStoreNamespace: !Ref ParameterStoreNamespace
 
   BookitWebService:
