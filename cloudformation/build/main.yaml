@@ -223,7 +223,7 @@ Resources:
               Configuration:
                 ChangeSetName: Deploy
                 ActionMode: CREATE_UPDATE
-                StackName: !Sub "${AppStackName}-app-BookitServerService"
+                StackName: "aochsner-bookit-dev-app-BookitServerService-1QCY3VYWR0MQL"
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath: Template::service.yaml
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
@@ -231,6 +231,10 @@ Resources:
                   {
                     "DesiredCount": "1",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
+                    "Cluster": "aochsner-bookit-dev-ECSCluster",
+                    "Repository": "${Repository}",
+                    "ContainerPort": "8888",
+                    "TargetGroup":  "arn:aws:elasticloadbalancing:us-east-1:006393696278:targetgroup/aochs-Targe-1GSS2QL3ZT9T2/09824de9998bd34f"
                   }
               InputArtifacts:
                 - Name: Template
