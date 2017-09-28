@@ -28,8 +28,8 @@ Parameters:
   ContainerPort:
     Type: Number
 
-  ParameterStoreNamespace:
-    Type: String
+  # ParameterStoreNamespace:
+  #   Type: String
 
 Resources:
   ECSServiceRole:
