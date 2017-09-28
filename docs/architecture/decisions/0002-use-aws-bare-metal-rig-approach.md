@@ -6,6 +6,8 @@ Date: 2017-09-27
 
 Accepted
 
+Amended by [3. Use AWS CodePipeline and CodeBuild instead of Travis](0003-use-aws-codepipeline-and-codebuild-instead-of-travis.md)
+
 ## Context
 
 We need to create a riglet for our new bookit project so that we practice what we preach.
