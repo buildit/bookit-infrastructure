@@ -150,7 +150,7 @@ Resources:
         TargetGroup: !GetAtt ServerLoadBalancer.Outputs.TargetGroup
         Repository: !Ref ServerRepository
         ContainerPort: 8888
-        ParameterStoreNamespace: !Ref ParameterStoreNamespace
+#        ParameterStoreNamespace: !Ref ParameterStoreNamespace
 
   BookitWebService:
     DependsOn:
@@ -165,7 +165,7 @@ Resources:
         TargetGroup: !GetAtt WebLoadBalancer.Outputs.TargetGroup
         Repository: !Ref WebRepository
         ContainerPort: 80
-        ParameterStoreNamespace: !Ref ParameterStoreNamespace
+ #       ParameterStoreNamespace: !Ref ParameterStoreNamespace
         BookitApiDomainName: !Sub https://${Environment}-bookit-api.${PublicDomainName}
 
 Outputs:
