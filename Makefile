@@ -50,7 +50,8 @@ create-foundation: upload-foundation
 			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
-			"Key=ProjectName,Value=${OWNER}-${PROJECT}-${ENV}"
+			"Key=Project,Value=${PROJECT}"
+#	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"
 
 ## Create new CF App stack
 create-app: upload-app
@@ -75,13 +76,15 @@ create-app: upload-app
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=ParameterStoreNamespace,ParameterValue=/bookit/${ENV}" \
-			"ParameterKey=ServerRepository,ParameterValue=${OWNER}-${PROJECT}-server-ecr-repo" \
+			"ParameterKey=ServerRepository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-ecr-repo" \
 			"ParameterKey=WebRepository,ParameterValue=${OWNER}-${PROJECT}-web-ecr-repo" \
 		--tags \
 			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
-			"Key=ProjectName,Value=${OWNER}-${PROJECT}-${ENV}"
+			"Key=Project,Value=${PROJECT}"
+#	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app"
+
 
 ## Create new CF Build stack
 create-build: upload-build
@@ -101,6 +104,7 @@ create-build: upload-build
 			"Key=Environment,Value=build" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
+#	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build"
 
 ## Updates existing Foundation CF stack
 update-foundation: upload-foundation
@@ -121,7 +125,7 @@ update-foundation: upload-foundation
 			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
-			"Key=ProjectName,Value=${OWNER}-${PROJECT}-${ENV}"
+			"Key=Project,Value=${PROJECT}"
 
 
 ## Update existing App CF Stack
@@ -152,7 +156,7 @@ update-app: upload-app
 			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
-			"Key=ProjectName,Value=${OWNER}-${PROJECT}-${ENV}"
+			"Key=Project,Value=${PROJECT}"
 
 ## Updates existing Build CF stack
 update-build: upload-build
