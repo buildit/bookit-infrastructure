@@ -99,6 +99,7 @@ create-build: upload-build
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
+			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app" \
 		--tags \
 			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=build" \
@@ -170,6 +171,7 @@ update-build: upload-build
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
+			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app" \
 		--tags \
 			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
