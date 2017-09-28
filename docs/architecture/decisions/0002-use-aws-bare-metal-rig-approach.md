@@ -17,10 +17,9 @@ Technologies:
 
 * AWS: CloudFormation, ECR, ECS, Route53, VPC, ALB
 * Deployment Mechanism: Docker images
-* Build: AWS CodeBuild/CodePipeline (instead of Travis from bookit-riglet)
+* Build: Travis
 
 ## Consequences
 
 * This will tie us to the AWS platform.
 * The bookit-riglet is not "complete."  There a number of improvements that can be made along the way that we will have to balance with feature work.
-* We don't know enough about CodeBuild/CodePipeline to understand whether it's the right fit or not.
