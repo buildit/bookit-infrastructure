@@ -92,11 +92,11 @@ Parameters:
     Type: String
 
   ServerRepository:
-    Description: Cluster repository name for bookit server
+    Description: Cluster repository name for bookit api
     Type: String
 
   WebRepository:
-    Description: Cluster repository name for bookit web
+    Description: Cluster repository name for bookit client react
     Type: String
 
 Resources:
@@ -109,7 +109,7 @@ Resources:
         AppStackName: !Sub ${AppStackName}-server
         FoundationStackName: !Ref FoundationStackName
         DnsHostedZoneName: !Ref PublicDomainName
-        DnsSubdomainName: !Sub ${Environment}-bookit-server
+        DnsSubdomainName: !Sub ${Environment}-bookit-api
 
   WebLoadBalancer:
     Type: AWS::CloudFormation::Stack
@@ -144,7 +144,7 @@ Resources:
     Properties:
       TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
       Parameters:
-        Tag: latest
+        Tag: !Ref Environment
         DesiredCount: 0
         Cluster: !GetAtt Cluster.Outputs.ClusterName
         TargetGroup: !GetAtt ServerLoadBalancer.Outputs.TargetGroup
@@ -159,14 +159,14 @@ Resources:
     Properties:
       TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
       Parameters:
-        Tag: latest
+        Tag: !Ref Environment
         DesiredCount: 0
         Cluster: !GetAtt Cluster.Outputs.ClusterName
         TargetGroup: !GetAtt WebLoadBalancer.Outputs.TargetGroup
         Repository: !Ref WebRepository
         ContainerPort: 80
         ParameterStoreNamespace: !Ref ParameterStoreNamespace
-        BookitApiDomainName: !Sub https://${Environment}-bookit-server.${PublicDomainName}
+        BookitApiDomainName: !Sub https://${Environment}-bookit-api.${PublicDomainName}
 
 Outputs:
 
