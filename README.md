@@ -54,4 +54,4 @@ To delete everything, in order:
 
 ## Architectural Decisions
 
-We are documenting our decisions [here](../master/docs/architecture/decisions/README.md)
+We are documenting our decisions [here](../master/docs/architecture/decisions)
