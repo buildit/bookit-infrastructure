@@ -96,7 +96,7 @@ Resources:
           #   - /bin/sh
           #   - ./run-in-aws.sh #special bootstrapping startup that pulls secrets from SSM parameter store
           Essential: true
-          Memory: 128
+          Memory: 256
           PortMappings:
             - ContainerPort: !Ref ContainerPort
               HostPort: 0
