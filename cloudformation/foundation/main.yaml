@@ -57,6 +57,20 @@ Parameters:
       - no
       - yes
 
+  EcsClusterSize:
+    Type: Number
+    Default: 1
+
+  EcsInstanceType:
+    Default: t2.medium
+    Description: Instance type of ECS cluster instance(s)
+    Type: String
+
+  SshKeyName:
+    Description: Name of keypair to use with managed instances.
+    Type: AWS::EC2::KeyPair::KeyName
+
+
 Conditions:
   ShouldCreateHostedZone: !Equals [ !Ref CreateHostedZone, yes ]
 
@@ -95,6 +109,28 @@ Resources:
         FoundationStackName: !Sub ${AWS::StackName}
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/nat.yaml
       TimeoutInMinutes: 60
+
+  LoadBalancer:
+    DependsOn:
+      - Vpc
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/load-balancer.yaml
+      Parameters:
+        FoundationStackName: !Sub ${AWS::StackName}
+
+  Cluster:
+    DependsOn:
+      - LoadBalancer
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/ecs-cluster.yaml
+      Parameters:
+        FoundationStackName: !Sub ${AWS::StackName}
+        SourceSecurityGroup: !GetAtt LoadBalancer.Outputs.SecurityGroup
+        InstanceType: !Ref EcsInstanceType
+        ClusterSize: !Ref EcsClusterSize
+        SshKeyName: !Ref SshKeyName
 
 
 Outputs:

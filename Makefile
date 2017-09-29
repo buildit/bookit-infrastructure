@@ -46,6 +46,8 @@ create-foundation: upload-foundation
 			"ParameterKey=Region,ParameterValue=${REGION}" \
 			"ParameterKey=SubnetPrivateCidrBlocks,ParameterValue='10.1.11.0/24,10.1.12.0/24,10.1.13.0/24'" \
 			"ParameterKey=SubnetPublicCidrBlocks,ParameterValue='10.1.1.0/24,10.1.2.0/24,10.1.3.0/24'" \
+			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
 			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
@@ -122,6 +124,8 @@ update-foundation: upload-foundation
 			"ParameterKey=Region,ParameterValue=${REGION}" \
 			"ParameterKey=SubnetPrivateCidrBlocks,ParameterValue='10.1.11.0/24,10.1.12.0/24,10.1.13.0/24'" \
 			"ParameterKey=SubnetPublicCidrBlocks,ParameterValue='10.1.1.0/24,10.1.2.0/24,10.1.3.0/24'" \
+			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
 			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \

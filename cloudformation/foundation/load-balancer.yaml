@@ -1,0 +1,100 @@
+---
+
+Description: Load Balancer
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  FoundationStackName:
+    Description: Foundation stack name
+    Type: String
+
+Resources:
+  SecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub ${FoundationStackName}--ALB
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          IpProtocol: "TCP"
+          FromPort: 443
+          ToPort: 443
+        - CidrIp: "0.0.0.0/0"
+          IpProtocol: "TCP"
+          FromPort: 80
+          ToPort: 80
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPublicA"
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPublicB"
+      SecurityGroups:
+        - !Ref SecurityGroup
+
+  LoadBalancerListenerHttps:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Certificates:
+        - CertificateArn: arn:aws:acm:us-east-1:006393696278:certificate/0663e927-e990-4157-aef9-7dea87faa6ec
+      Port: 443
+      Protocol: HTTPS
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DefaultTargetGroup
+
+  LoadBalancerListenerHttp:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DefaultTargetGroup
+
+  DefaultTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: LoadBalancer
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      Port: 80
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 30
+
+Outputs:
+  SecurityGroup:
+    Value: !Ref SecurityGroup
+
+  CanonicalHostedZoneID:
+    Export:
+      Name: !Sub "${FoundationStackName}--ALB--CanonicalHostedZoneID"
+    Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
+
+  DNSName:
+    Export:
+      Name: !Sub "${FoundationStackName}--ALB--DNSName"
+    Value: !GetAtt LoadBalancer.DNSName
+
+  HttpListener:
+    Export:
+      Name: !Sub "${FoundationStackName}--ALB--HttpListener"
+    Value: !Ref LoadBalancerListenerHttp
+
+  HttpsListener:
+    Export:
+      Name: !Sub "${FoundationStackName}--ALB--HttpsListener"
+    Value: !Ref LoadBalancerListenerHttps
