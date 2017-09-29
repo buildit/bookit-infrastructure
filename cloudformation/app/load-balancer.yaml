@@ -22,39 +22,6 @@ Parameters:
 
 
 Resources:
-  SecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupDescription: !Sub ${AppStackName}--ALB
-      SecurityGroupIngress:
-        - CidrIp: "0.0.0.0/0"
-          IpProtocol: "TCP"
-          FromPort: 443
-          ToPort: 443
-      VpcId:
-        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
-
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Subnets:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPublicA"
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPublicB"
-      SecurityGroups:
-        - !Ref SecurityGroup
-
-  LoadBalancerListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref LoadBalancer
-      Certificates:
-        - CertificateArn: arn:aws:acm:us-east-1:006393696278:certificate/0663e927-e990-4157-aef9-7dea87faa6ec
-      Port: 443
-      Protocol: HTTPS
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
-
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     DependsOn: LoadBalancer
@@ -74,15 +41,30 @@ Resources:
         - Key: deregistration_delay.timeout_seconds
           Value: 30
 
-  ListenerRule:
+  ListenerRuleHttp:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !Ref LoadBalancerListener
-      Priority: 1
+      ListenerArn:
+        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpListener"
+      Priority: !Ref ListenerRulePriority
       Conditions:
-        - Field: path-pattern
+        - Field: host-header
           Values:
-            - /
+            - !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}"
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+
+  ListenerRuleHttps:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn:
+        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpsListener"
+      Priority: !Ref ListenerRulePriority
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}"
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
@@ -90,14 +72,16 @@ Resources:
   elbDNS:
     Type: AWS::Route53::RecordSetGroup
     Properties:
-      HostedZoneName: !Sub "${DnsHostedZoneName}."
+      HostedZoneName: !Sub "${PublicDomainName}."
       Comment: DNS for ELB.
       RecordSets:
-      - Name: !Sub "${DnsSubdomainName}.${DnsHostedZoneName}."
+      - Name: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
         Type: A
         AliasTarget:
-          HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
-          DNSName: !GetAtt LoadBalancer.DNSName
+          HostedZoneId:
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--CanonicalHostedZoneID"
+          DNSName:
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--DNSName"
 
 Outputs:
   TargetGroup:

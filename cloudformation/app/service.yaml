@@ -50,12 +50,12 @@ Resources:
   Service:
     Type: AWS::ECS::Service
     Properties:
-      Cluster: !Ref Cluster
+      Cluster: Fn::ImportValue: !Sub "${FoundationStackName}--Cluster"
       Role: !Ref ECSServiceRole
       DesiredCount: !Ref DesiredCount
       TaskDefinition: !Ref TaskDefinition
       LoadBalancers:
-        - ContainerName: app-deployment
+        - ContainerName: !Ref ApplicationName
           ContainerPort: !Ref ContainerPort
           TargetGroupArn: !Ref TargetGroup
 
@@ -83,20 +83,19 @@ Resources:
                 Action:
                   - ssm:GetParameters
 
-
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub ${AWS::StackName}-app-deployment
+      Family: !Sub ${AWS::StackName}-${ApplicationName}
       TaskRoleArn: !Ref TaskDefinitionServiceRole
       ContainerDefinitions:
-        - Name: app-deployment
+        - Name: ${ApplicationName}
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}:${Tag}
           # Command:
           #   - /bin/sh
           #   - ./run-in-aws.sh #special bootstrapping startup that pulls secrets from SSM parameter store
           Essential: true
-          Memory: 128
+          Memory: 256
           PortMappings:
             - ContainerPort: !Ref ContainerPort
               HostPort: 0
