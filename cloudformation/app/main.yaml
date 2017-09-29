@@ -36,7 +36,7 @@ Parameters:
   Prefix:
     Description: Discrimiator for other "owners."  The real environments will be blank
     Type: String
-    Default:
+    Default: ""
 
   ContainerPort:
     Type: String
@@ -48,6 +48,10 @@ Parameters:
   ListenerRulePriority:
     Description: The priority for the listener rule
     Type: Number
+
+  Tag:
+    Type: String
+    Default: latest
 
 
 Resources:
@@ -61,7 +65,6 @@ Resources:
   #       DnsSubdomainName: !Sub ${Prefix}${Environment}-${ApplicationName}
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    DependsOn: LoadBalancer
     Properties:
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
@@ -150,7 +153,8 @@ Resources:
   Service:
     Type: AWS::ECS::Service
     Properties:
-      Cluster: Fn::ImportValue: !Sub "${FoundationStackName}--Cluster"
+      Cluster:
+        Fn::ImportValue: !Sub "${FoundationStackName}--Cluster"
       Role: !Ref ECSServiceRole
       DesiredCount: !Ref DesiredCount
       TaskDefinition: !Ref TaskDefinition
@@ -189,7 +193,7 @@ Resources:
       Family: !Sub ${AWS::StackName}-${ApplicationName}
       TaskRoleArn: !Ref TaskDefinitionServiceRole
       ContainerDefinitions:
-        - Name: ${ApplicationName}
+        - Name: !Ref ApplicationName
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}:${Tag}
           # Command:
           #   - /bin/sh

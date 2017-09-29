@@ -228,7 +228,7 @@ Resources:
               Configuration:
                 ChangeSetName: Deploy
                 ActionMode: CREATE_UPDATE
-                StackName: !Sub "${AppStackName}-app-${GitHubRepo}"
+                StackName: !Sub "${AppStackName}-integration-app-${GitHubRepo}-${GitHubBranch}"
                 Capabilities: CAPABILITY_NAMED_IAM
                 OutputFileName: CloudFormationOutput.json
                 TemplatePath: Template::main.yaml
