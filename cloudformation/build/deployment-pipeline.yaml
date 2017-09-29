@@ -7,6 +7,9 @@ Parameters:
   AppStackName:
     Type: String
 
+  FoundationStackName:
+    Type: String
+
   InfraDevBucket:
     Type: String
 
@@ -158,6 +161,8 @@ Resources:
         #     Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
             Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+          - Name: BRANCH
+            Value: !Ref GitHubBranch
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, 'build' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -197,24 +202,24 @@ Resources:
               Configuration:
                 S3Bucket: !Ref InfraDevBucket
                 S3ObjectKey: "templates/templates.zip"
-        - Name: Build
-          Actions:
-            - Name: Build
-              ActionTypeId:
-                Category: Build
-                Owner: AWS
-                Version: 1
-                Provider: CodeBuild
-              Configuration:
-                ProjectName: !Ref CodeBuildProject
-              InputArtifacts:
-                - Name: App
-              OutputArtifacts:
-                - Name: BuildOutput
-              RunOrder: 1
+        # - Name: Build
+        #   Actions:
+        #     - Name: Build
+        #       ActionTypeId:
+        #         Category: Build
+        #         Owner: AWS
+        #         Version: 1
+        #         Provider: CodeBuild
+        #       Configuration:
+        #         ProjectName: !Ref CodeBuildProject
+        #       InputArtifacts:
+        #         - Name: App
+        #       OutputArtifacts:
+        #         - Name: BuildOutput
+        #       RunOrder: 1
         - Name: Deploy
           Actions:
-            - Name: Deploy
+            - Name: Provision Integration Environment
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -223,23 +228,50 @@ Resources:
               Configuration:
                 ChangeSetName: Deploy
                 ActionMode: CREATE_UPDATE
-                StackName: "aochsner-bookit-dev-app-BookitServerService-1QCY3VYWR0MQL"
+                StackName: !Sub "${AppStackName}-app-${GitHubRepo}"
                 Capabilities: CAPABILITY_NAMED_IAM
-                TemplatePath: Template::service.yaml
+                OutputFileName: CloudFormationOutput.json
+                TemplatePath: Template::main.yaml
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 ParameterOverrides: !Sub |
                   {
-                    "DesiredCount": "1",
-                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
-                    "Cluster": "aochsner-bookit-dev-ECSCluster",
-                    "Repository": "${Repository}",
-                    "ContainerPort": "8080",
-                    "TargetGroup":  "arn:aws:elasticloadbalancing:us-east-1:006393696278:targetgroup/aochs-Targe-1OIZMJHVC5KRZ/428a28061635aa61"
+                    "Prefix", "${Prefix}",
+                    "Environment": "integration",
+                    "FoundationStackName": "${FoundationStackName}",
+                    "InfraDevBucket": "${InfraDevBucket}",
+                    "RepositoryName": "${Repository}"
                   }
               InputArtifacts:
                 - Name: Template
-                - Name: BuildOutput
+              OutputArtifacts:
+                - Name: IntegrationEnvironment
               RunOrder: 1
+            # - Name: Deploy Application
+            #   ActionTypeId:
+            #     Category: Deploy
+            #     Owner: AWS
+            #     Version: 1
+            #     Provider: CloudFormation
+            #   Configuration:
+            #     ChangeSetName: Deploy
+            #     ActionMode: CREATE_UPDATE
+            #     StackName: "aochsner-bookit-dev-app-BookitServerService-1QCY3VYWR0MQL"
+            #     Capabilities: CAPABILITY_NAMED_IAM
+            #     TemplatePath: Template::service.yaml
+            #     RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+            #     ParameterOverrides: !Sub |
+            #       {
+            #         "DesiredCount": "1",
+            #         "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
+            #         "Cluster": "aochsner-bookit-dev-ECSCluster",
+            #         "Repository": "${Repository}",
+            #         "ContainerPort": "8080",
+            #         "TargetGroup":  "arn:aws:elasticloadbalancing:us-east-1:006393696278:targetgroup/aochs-Targe-1OIZMJHVC5KRZ/428a28061635aa61"
+            #       }
+            #   InputArtifacts:
+            #     - Name: Template
+            #     - Name: BuildOutput
+            #   RunOrder: 2
 
 Outputs:
   PipelineUrl:

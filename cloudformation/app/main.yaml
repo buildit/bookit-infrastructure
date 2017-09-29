@@ -4,28 +4,10 @@ Description: Application Deployment on ECS
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
-  AppName:
-    Default: twig
-    Description: Application name
-    Type: String
-
-  AppStackName:
-    Description: App stack name
-    Type: String
-
-  BuildArtifactsBucket:
-    Default: rig.awsrig.dmacedo.build
-    Description: Build Artifacts S3 Bucket
-    Type: String
-
   Environment:
     Default: tst
     Description: Stack environment
     Type: String
-
-  EcsClusterSize:
-    Type: Number
-    Default: 1
 
   FoundationStackName:
     Description: Foundation stack name
@@ -35,145 +17,196 @@ Parameters:
     Description: App S3 Bucket
     Type: String
 
-  ProjectName:
-    Default: awsrig
-    Description: Project name
-    Type: String
-
-  RepositoryName:
-    AllowedPattern: '[\x20-\x7E]*'
-    ConstraintDescription: Can contain only ASCII characters.
-    Description: The name of the CodeCommit repo
-    Type: String
-
-  RepositoryBranch:
-    AllowedPattern: '[\x20-\x7E]*'
-    ConstraintDescription: Can contain only ASCII characters.
-    Default: master
-    Description: The name of the branch for the CodeCommit repo
-    Type: String
-
-  RepositoryAuthToken:
-    AllowedPattern: '[\x20-\x7E]*'
-    ConstraintDescription: Can contain only ASCII characters.
-    Description: The OAuth (or whatever) token required to obtain sources from your repo.
-    Type: String
-    NoEcho: true
-
-  Region:
-    Default: us-east-1
-    Description: Region
-    Type: String
-
-  EcsInstanceType:
-    Default: t2.medium
-    Description: Instance type of ECS cluster instance(s)
-    Type: String
-
-  SshKeyName:
-    Description: Name of keypair to use with managed instances.
-    Type: AWS::EC2::KeyPair::KeyName
-
-  UserName:
-    Description: User FirstLastName
-    Type: String
-
   PublicDomainName:
     Description: Public Domain Name for sites and services created by this stack.
     Type: String
 
-  BuildUserAccessKeySerial:
-    Description: Increment this value by one to rotate the build user key.
+  # ParameterStoreNamespace:
+  #   Description: Namespace in parameter store from which configuration values will be taken.
+  #   Type: String
+
+  Repository:
+    Description: ECR Repository
+    Type: String
+
+  ApplicationName:
+    Description: Name of the application (part of hostname)
+    Type: String
+
+  Prefix:
+    Description: Discrimiator for other "owners."  The real environments will be blank
+    Type: String
+    Default:
+
+  ContainerPort:
+    Type: String
+
+  DesiredCount:
     Type: Number
     Default: 0
 
-  ParameterStoreNamespace:
-    Description: Namespace in parameter store from which configuration values will be taken.
-    Type: String
+  ListenerRulePriority:
+    Description: The priority for the listener rule
+    Type: Number
 
-  ServerRepository:
-    Description: Cluster repository name for bookit api
-    Type: String
-
-  WebRepository:
-    Description: Cluster repository name for bookit client react
-    Type: String
 
 Resources:
-
-  ServerLoadBalancer:
-    Type: AWS::CloudFormation::Stack
+  # LoadBalancer:
+  #   Type: AWS::CloudFormation::Stack
+  #   Properties:
+  #     TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
+  #     Parameters:
+  #       FoundationStackName: !Ref FoundationStackName
+  #       DnsHostedZoneName: !Ref PublicDomainName
+  #       DnsSubdomainName: !Sub ${Prefix}${Environment}-${ApplicationName}
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: LoadBalancer
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
-      Parameters:
-        AppStackName: !Sub ${AppStackName}-server
-        FoundationStackName: !Ref FoundationStackName
-        DnsHostedZoneName: !Ref PublicDomainName
-        DnsSubdomainName: !Sub ${Environment}-bookit-api
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      Port: 8080
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 30
 
-  WebLoadBalancer:
-    Type: AWS::CloudFormation::Stack
+  ListenerRuleHttp:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
-      Parameters:
-        AppStackName: !Sub ${AppStackName}-web
-        FoundationStackName: !Ref FoundationStackName
-        DnsHostedZoneName: !Ref PublicDomainName
-        DnsSubdomainName: !Sub ${Environment}-bookit-web
+      ListenerArn:
+        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpListener"
+      Priority: !Ref ListenerRulePriority
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}"
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
 
-  Cluster:
-    DependsOn:
-      - ServerLoadBalancer
-      - WebLoadBalancer
-    Type: AWS::CloudFormation::Stack
+  ListenerRuleHttps:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/ecs-cluster.yaml
-      Parameters:
-        AppStackName: !Ref AppStackName
-        FoundationStackName: !Ref FoundationStackName
-        ServerSourceSecurityGroup: !GetAtt ServerLoadBalancer.Outputs.SecurityGroup
-        WebSourceSecurityGroup: !GetAtt WebLoadBalancer.Outputs.SecurityGroup
-        InstanceType: !Ref EcsInstanceType
-        ClusterSize: !Ref EcsClusterSize
-        SshKeyName: !Ref SshKeyName
+      ListenerArn:
+        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpsListener"
+      Priority: !Ref ListenerRulePriority
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}"
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
 
-  BookitServerService:
-    DependsOn:
-      - Cluster
-    Type: AWS::CloudFormation::Stack
+  elbDNS:
+    Type: AWS::Route53::RecordSetGroup
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
-      Parameters:
-        Tag: !Ref Environment
-        DesiredCount: 0
-        Cluster: !GetAtt Cluster.Outputs.ClusterName
-        TargetGroup: !GetAtt ServerLoadBalancer.Outputs.TargetGroup
-        Repository: !Ref ServerRepository
-        ContainerPort: 8080
-#        ParameterStoreNamespace: !Ref ParameterStoreNamespace
+      HostedZoneName: !Sub "${PublicDomainName}."
+      Comment: DNS for ELB.
+      RecordSets:
+      - Name: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+        Type: A
+        AliasTarget:
+          HostedZoneId:
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--CanonicalHostedZoneID"
+          DNSName:
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--DNSName"
 
-  BookitWebService:
-    DependsOn:
-      - Cluster
-    Type: AWS::CloudFormation::Stack
+  # ECSService:
+  #   Type: AWS::CloudFormation::Stack
+  #   Properties:
+  #     TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
+  #     Parameters:
+  #       Tag: !Sub "${Environment}"
+  #       DesiredCount: 0
+  #       Cluster: !Ref Cluster
+  #       TargetGroup: !GetAtt LoadBalancer.Outputs.TargetGroup
+  #       Repository: !Ref Repository
+  #       ContainerPort: !Ref ContainerPort
+  #       ParameterStoreNamespace: !Ref ParameterStoreNamespace
+  ECSServiceRole:
+    Type: AWS::IAM::Role
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
-      Parameters:
-        Tag: !Ref Environment
-        DesiredCount: 0
-        Cluster: !GetAtt Cluster.Outputs.ClusterName
-        TargetGroup: !GetAtt WebLoadBalancer.Outputs.TargetGroup
-        Repository: !Ref WebRepository
-        ContainerPort: 80
- #       ParameterStoreNamespace: !Ref ParameterStoreNamespace
-        BookitApiDomainName: !Sub https://${Environment}-bookit-api.${PublicDomainName}
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "ecs.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole
 
-Outputs:
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: Fn::ImportValue: !Sub "${FoundationStackName}--Cluster"
+      Role: !Ref ECSServiceRole
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref TaskDefinition
+      LoadBalancers:
+        - ContainerName: !Ref ApplicationName
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref TargetGroup
 
-  ServerLoadBalancerUrl:
-    Description: URL of the load balancer for the sample service.
-    Value: !GetAtt ServerLoadBalancer.Outputs.ServiceUrl
 
-  WebLoadBalancerUrl:
-    Description: URL of the load balancer for the sample service.
-    Value: !GetAtt WebLoadBalancer.Outputs.ServiceUrl
+  TaskDefinitionServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "ecs-tasks.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # TODO:  this needs to be tightened-up.
+              - Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+                Effect: Allow
+                Action:
+                  - ssm:GetParameters
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-${ApplicationName}
+      TaskRoleArn: !Ref TaskDefinitionServiceRole
+      ContainerDefinitions:
+        - Name: ${ApplicationName}
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}:${Tag}
+          # Command:
+          #   - /bin/sh
+          #   - ./run-in-aws.sh #special bootstrapping startup that pulls secrets from SSM parameter store
+          Essential: true
+          Memory: 256
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+              HostPort: 0
+          Environment:
+            - Name: Tag
+              Value: !Ref Tag
+            # - Name: USE_AZURE
+            #   Value: true
+            # - Name: ACTUAL_BOOKIT_API_URL  # This is the actual/true HTTP URL of the running service (DNS Name-based).
+            #   Value: !Ref BookitApiDomainName
+            # - Name: BOOKIT_API_BASE_URL   # This is a logical URL used by the Bookit app itself to define the endpoint it talks to.
+            #   Value: /api  # Mapped to the ACTUAL_BOOKIT_API_URL via a reverse proxy config in nginx.
+            # - Name: PARAMETER_STORE_NAMESPACE
+            #   Value: !Ref ParameterStoreNamespace
