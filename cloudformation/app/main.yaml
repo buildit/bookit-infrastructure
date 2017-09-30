@@ -26,7 +26,7 @@ Parameters:
   #   Type: String
 
   Repository:
-    Description: ECR Repository
+    Description: ECR Repository ARN
     Type: String
 
   ApplicationName:
@@ -52,7 +52,6 @@ Parameters:
   Tag:
     Type: String
     Default: latest
-
 
 Resources:
   # LoadBalancer:
@@ -194,7 +193,7 @@ Resources:
       TaskRoleArn: !Ref TaskDefinitionServiceRole
       ContainerDefinitions:
         - Name: !Ref ApplicationName
-          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}:${Tag}
+          Image: !Sub ${Repository}:${Tag}
           # Command:
           #   - /bin/sh
           #   - ./run-in-aws.sh #special bootstrapping startup that pulls secrets from SSM parameter store

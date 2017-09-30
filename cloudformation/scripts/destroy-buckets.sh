@@ -7,7 +7,7 @@ echo 'This script will remove empty the S3 buckets...'
 : ${OWNER?"Need to set name suffix in OWNER env var"}
 
 # Create confirmation etc:
-aws s3 rb s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.foundation
-aws s3 rb s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app
-aws s3 rb s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.build-support
-aws s3 rb s3://rig.${OWNER}.${PROJECT}.${REGION}.build
+aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
+aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
+aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
+aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build

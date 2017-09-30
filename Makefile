@@ -39,7 +39,7 @@ create-foundation: deps upload-templates
 		--parameters \
 			"ParameterKey=CidrBlock,ParameterValue=10.1.0.0/16" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.foundation" \
+			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
@@ -52,10 +52,26 @@ create-foundation: deps upload-templates
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-#	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"
+
+## Create new CF Build app foundation stack
+create-build-app-foundation: upload-build
+	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}" \
+                --region ${REGION} \
+                --disable-rollback \
+		--template-body "file://cloudformation/build/app.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=AppStackName,ParameterValue=${OWNER}-${PROJECT}" \
+			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
+		--tags \
+			"Key=Email,Value=${EMAIL}" \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}"
 
 ## Create new CF Build pipeline stack
-create-build-pipeline: deps upload-build
+create-build-pipeline: upload-build
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -63,18 +79,21 @@ create-build-pipeline: deps upload-build
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=AppStackName,ParameterValue=${OWNER}-${PROJECT}" \
-			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
-			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app" \
+			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
+			"ParameterKey=InfraDevBucketBase,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app" \
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
+			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
+			"ParameterKey=Prefix,ParameterValue=${OWNER}" \
+			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
+			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
 			"Key=Email,Value=${EMAIL}" \
-			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-#	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"
 
 ## Create new CF Build pipeline stack
 create-app: deps upload-app
@@ -86,11 +105,10 @@ create-app: deps upload-app
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
-			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app" \
+			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-ecr-repo" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
-			"ParameterKey=Prefix,ParameterValue=${OWNER}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
@@ -98,7 +116,7 @@ create-app: deps upload-app
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-#	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}"
 
 ## Updates existing Foundation CF stack
 update-foundation: upload-templates
@@ -109,7 +127,7 @@ update-foundation: upload-templates
 		--parameters \
 			"ParameterKey=CidrBlock,ParameterValue=10.1.0.0/16" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.foundation" \
+			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
@@ -122,7 +140,22 @@ update-foundation: upload-templates
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"
 
+## Update new CF Build app foundation stack
+update-build-app-foundation: upload-build
+	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}" \
+                --region ${REGION} \
+		--template-body "file://cloudformation/build/app.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=AppStackName,ParameterValue=${OWNER}-${PROJECT}" \
+			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
+		--tags \
+			"Key=Email,Value=${EMAIL}" \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}"
 
 ## Update existing Build Pipeline CF Stack
 update-build-pipeline: upload-build
@@ -132,17 +165,21 @@ update-build-pipeline: upload-build
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=AppStackName,ParameterValue=${OWNER}-${PROJECT}" \
-			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
-			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app" \
+			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
+			"ParameterKey=InfraDevBucketBase,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app" \
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
+			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
+			"ParameterKey=Prefix,ParameterValue=${OWNER}" \
+			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
+			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
 			"Key=Email,Value=${EMAIL}" \
-			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"
 
 ## Update App CF stack
 update-app: deps upload-app
@@ -153,11 +190,10 @@ update-app: deps upload-app
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
-			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app" \
+			"ParameterKey=InfraDevBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-ecr-repo" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
-			"ParameterKey=Prefix,ParameterValue=${OWNER}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
@@ -165,7 +201,7 @@ update-app: deps upload-app
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-#	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app"
 
 ## Print Foundation stack's status
 status-foundation:
@@ -179,6 +215,21 @@ outputs-foundation:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
+		--query "Stacks[][Outputs] | []" | jq
+
+## Print build app foundation stack's status
+status-build-app-foundation:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-pipeline-${REPO}" \
+		--query "Stacks[][StackStatus] | []" | jq
+
+
+## Print build app foundation stack's outputs
+outputs-build-app-foundation:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-pipeline-${REPO}" \
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Print build pipeline stack's status
@@ -214,18 +265,28 @@ outputs-app:
 delete-foundation:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the Foundation Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"; \
+	fi
+
+## Deletes the build app foundation CF stack
+delete-build-app-foundation:
+	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${PROJECT} App Foundation Stack for repo: ${REPO}?"; then \
+		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-build-${REPO}"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}"; \
 	fi
 
 ## Deletes the build pipeline CF stack
 delete-build-pipeline:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${PROJECT} Pipeline Stack for repo: ${REPO} branch: ${REPO_BRANCH}?"; then \
-		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-pipeline-${REPO}-${REPO_BRANCH}"; \
+		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"; \
 	fi
 
 ## Deletes the app CF stack
 delete-app:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the App Stack for environment: ${ENV} repo: ${REPO} branch: ${REPO_BRANCH}?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}"; \
 	fi
 
 upload-templates: upload-foundation upload-app
@@ -233,24 +294,24 @@ upload-templates: upload-foundation upload-app
 ## Upload CF Templates to S3
 # Uploads foundation templates to the Foundation bucket
 upload-foundation:
-	@aws s3 cp --recursive cloudformation/foundation/ s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.foundation/templates/
+	@aws s3 cp --recursive cloudformation/foundation/ s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}/templates/
 
 ## Upload CF Templates for project
 # Note that these templates will be stored in your InfraDev Project **shared** bucket:
 upload-app: upload-app-deployment
-	@aws s3 cp --recursive cloudformation/app/ s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app/templates/
+	@aws s3 cp --recursive cloudformation/app/ s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 	pwd=$(shell pwd)
 	cd cloudformation/app/ && zip templates.zip *.yaml
 	cd ${pwd}
-	@aws s3 cp cloudformation/app/templates.zip s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app/templates/
+	@aws s3 cp cloudformation/app/templates.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 	rm -rf cloudformation/app/templates.zip
-	@aws s3 cp cloudformation/app/main.yaml s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.app/templates/
+	@aws s3 cp cloudformation/app/main.yaml s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}/templates/
 
 ## Upload app-deployment scripts to S3
 # Uploads the build support scripts to the build-support bucket.  These scripts can be used by external
 # build tools (Jenkins, Travis, etc.) to push images to ECR, deploy to ECS, etc.
 upload-app-deployment:
-	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${ENV}.${REGION}.build-support/app-deployment/
+	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}/app-deployment/
 
 ## Upload Build CF Templates
 upload-build:

@@ -1,0 +1,24 @@
+---
+
+Description: Deployment Pipeline
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  AppStackName:
+    Type: String
+
+  GitHubRepo:
+    Type: String
+
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, 'ecr', 'repo' ] ]
+
+Outputs:
+  Repository:
+    Description: ECR Repository
+    Export:
+      Name: !Sub "${AppStackName}-${GitHubRepo}--Repository"
+    Value: !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}"

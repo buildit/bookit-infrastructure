@@ -7,10 +7,10 @@ Parameters:
   AppStackName:
     Type: String
 
-  FoundationStackName:
+  PublicDomainName:
     Type: String
 
-  InfraDevBucket:
+  InfraDevBucketBase:
     Type: String
 
   BuildArtifactsBucket:
@@ -29,12 +29,20 @@ Parameters:
     Type: String
     Default: buildit
 
-Resources:
-  Repository:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, 'ecr', 'repo' ] ]
+  ApplicationName:
+    Type: String
 
+  Prefix:
+    Type: String
+
+  ContainerPort:
+    Type: Number
+
+  ListenerRulePriority:
+    Description: The unique priority across applications sharing the ALB
+    Type: Number
+
+Resources:
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -90,7 +98,8 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:GetObjectVersion
-              - Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}
+              - Resource:
+                  Fn::ImportValue: !Sub "${AppStackName}-${GitHubRepo}--Repository"
                 Effect: Allow
                 Action:
                   - ecr:GetDownloadUrlForLayer
@@ -121,8 +130,8 @@ Resources:
               - Resource:
                   - !Sub arn:aws:s3:::${BuildArtifactsBucket}
                   - !Sub arn:aws:s3:::${BuildArtifactsBucket}/*
-                  - !Sub arn:aws:s3:::${InfraDevBucket}
-                  - !Sub arn:aws:s3:::${InfraDevBucket}/*
+                  - !Sub arn:aws:s3:::${InfraDevBucketBase}.integration
+                  - !Sub arn:aws:s3:::${InfraDevBucketBase}.integration/*
                 Effect: Allow
                 Action:
                   - s3:PutObject
@@ -160,7 +169,8 @@ Resources:
         #   - Name: AWS_REGION
         #     Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
-            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+            Value:
+              Fn::ImportValue: !Sub "${AppStackName}-${GitHubRepo}--Repository"
           - Name: BRANCH
             Value: !Ref GitHubBranch
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, 'build' ] ]
@@ -200,26 +210,26 @@ Resources:
                 - Name: Template
               RunOrder: 1
               Configuration:
-                S3Bucket: !Ref InfraDevBucket
+                S3Bucket: !Sub "${InfraDevBucketBase}.integration"
                 S3ObjectKey: "templates/templates.zip"
-        # - Name: Build
-        #   Actions:
-        #     - Name: Build
-        #       ActionTypeId:
-        #         Category: Build
-        #         Owner: AWS
-        #         Version: 1
-        #         Provider: CodeBuild
-        #       Configuration:
-        #         ProjectName: !Ref CodeBuildProject
-        #       InputArtifacts:
-        #         - Name: App
-        #       OutputArtifacts:
-        #         - Name: BuildOutput
-        #       RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: App
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
         - Name: Deploy
           Actions:
-            - Name: Provision Integration Environment
+            - Name: Deploy
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -235,43 +245,23 @@ Resources:
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 ParameterOverrides: !Sub |
                   {
-                    "Prefix", "${Prefix}",
                     "Environment": "integration",
-                    "FoundationStackName": "${FoundationStackName}",
-                    "InfraDevBucket": "${InfraDevBucket}",
-                    "RepositoryName": "${Repository}"
+                    "FoundationStackName": "${AppStackName}-integration-foundation",
+                    "InfraDevBucket": "${InfraDevBucketBase}.integration",
+                    "PublicDomainName": "${PublicDomainName}",
+                    "Repository": { "Fn::ImportValue" : { "Fn::Sub": ["${AppStackName}-${GitHubRepo}--Repository"] } },
+                    "ApplicationName": "${ApplicationName}",
+                    "Prefix", "${Prefix}",
+                    "ContainerPort": "${ContainerPort}",
+                    "DesiredCount":"1",
+                    "ListenerRulePriority": "${ListenerRulePriority}",
+                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
                   }
               InputArtifacts:
                 - Name: Template
               OutputArtifacts:
                 - Name: IntegrationEnvironment
               RunOrder: 1
-            # - Name: Deploy Application
-            #   ActionTypeId:
-            #     Category: Deploy
-            #     Owner: AWS
-            #     Version: 1
-            #     Provider: CloudFormation
-            #   Configuration:
-            #     ChangeSetName: Deploy
-            #     ActionMode: CREATE_UPDATE
-            #     StackName: "aochsner-bookit-dev-app-BookitServerService-1QCY3VYWR0MQL"
-            #     Capabilities: CAPABILITY_NAMED_IAM
-            #     TemplatePath: Template::service.yaml
-            #     RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-            #     ParameterOverrides: !Sub |
-            #       {
-            #         "DesiredCount": "1",
-            #         "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
-            #         "Cluster": "aochsner-bookit-dev-ECSCluster",
-            #         "Repository": "${Repository}",
-            #         "ContainerPort": "8080",
-            #         "TargetGroup":  "arn:aws:elasticloadbalancing:us-east-1:006393696278:targetgroup/aochs-Targe-1OIZMJHVC5KRZ/428a28061635aa61"
-            #       }
-            #   InputArtifacts:
-            #     - Name: Template
-            #     - Name: BuildOutput
-            #   RunOrder: 2
 
 Outputs:
   PipelineUrl:
