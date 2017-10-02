@@ -1,6 +1,6 @@
 ---
 
-Description: Deployment Pipeline
+Description: Application Build Foundation
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
@@ -17,8 +17,13 @@ Resources:
       RepositoryName: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, 'ecr', 'repo' ] ]
 
 Outputs:
-  Repository:
-    Description: ECR Repository
+  RepositoryURI:
+    Description: ECR Repository URI
     Export:
-      Name: !Sub "${AppStackName}-${GitHubRepo}--Repository"
+      Name: !Sub "${AppStackName}-${GitHubRepo}--RepositoryURI"
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
+  RepositoryARN:
+    Description: ECR Repository ARN
+    Export:
+      Name: !Sub "${AppStackName}-${GitHubRepo}--RepositoryARN"
     Value: !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}"

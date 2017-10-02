@@ -25,8 +25,8 @@ Parameters:
   #   Description: Namespace in parameter store from which configuration values will be taken.
   #   Type: String
 
-  Repository:
-    Description: ECR Repository ARN
+  RepositoryURI:
+    Description: ECR Repository URI
     Type: String
 
   ApplicationName:
@@ -193,7 +193,7 @@ Resources:
       TaskRoleArn: !Ref TaskDefinitionServiceRole
       ContainerDefinitions:
         - Name: !Ref ApplicationName
-          Image: !Sub ${Repository}:${Tag}
+          Image: !Sub ${RepositoryURI}:${Tag}
           # Command:
           #   - /bin/sh
           #   - ./run-in-aws.sh #special bootstrapping startup that pulls secrets from SSM parameter store
@@ -213,3 +213,8 @@ Resources:
             #   Value: /api  # Mapped to the ACTUAL_BOOKIT_API_URL via a reverse proxy config in nginx.
             # - Name: PARAMETER_STORE_NAMESPACE
             #   Value: !Ref ParameterStoreNamespace
+
+Outputs:
+  ApplicationUrl:
+    Description: URL of the application
+    Value: !Sub "https://${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}"

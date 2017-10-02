@@ -66,6 +66,8 @@ Resources:
                   - ecs:*
                   - ecr:*
                   - iam:*
+                  - route53:*
+                  - elasticloadbalancing:*
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
@@ -99,7 +101,7 @@ Resources:
                   - s3:PutObject
                   - s3:GetObjectVersion
               - Resource:
-                  Fn::ImportValue: !Sub "${AppStackName}-${GitHubRepo}--Repository"
+                  Fn::ImportValue: !Sub "${AppStackName}-${GitHubRepo}--RepositoryARN"
                 Effect: Allow
                 Action:
                   - ecr:GetDownloadUrlForLayer
@@ -170,7 +172,7 @@ Resources:
         #     Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
             Value:
-              Fn::ImportValue: !Sub "${AppStackName}-${GitHubRepo}--Repository"
+              Fn::ImportValue: !Sub "${AppStackName}-${GitHubRepo}--RepositoryURI"
           - Name: BRANCH
             Value: !Ref GitHubBranch
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, 'build' ] ]
@@ -249,16 +251,17 @@ Resources:
                     "FoundationStackName": "${AppStackName}-integration-foundation",
                     "InfraDevBucket": "${InfraDevBucketBase}.integration",
                     "PublicDomainName": "${PublicDomainName}",
-                    "Repository": { "Fn::ImportValue" : { "Fn::Sub": ["${AppStackName}-${GitHubRepo}--Repository"] } },
+                    "RepositoryURI": "006393696278.dkr.ecr.us-east-1.amazonaws.com/aochsnerdev-bookit-bookit-api-ecr-repo",
                     "ApplicationName": "${ApplicationName}",
-                    "Prefix", "${Prefix}",
+                    "Prefix": "${Prefix}",
                     "ContainerPort": "${ContainerPort}",
                     "DesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
-                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
+                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               InputArtifacts:
                 - Name: Template
+                - Name: BuildOutput
               OutputArtifacts:
                 - Name: IntegrationEnvironment
               RunOrder: 1
