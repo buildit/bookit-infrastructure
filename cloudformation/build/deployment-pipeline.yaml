@@ -43,6 +43,11 @@ Parameters:
     Type: Number
 
 Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'ecr', 'repo' ] ]
+
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -100,8 +105,7 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:GetObjectVersion
-              - Resource:
-                  Fn::ImportValue: !Sub "${AppStackName}-${GitHubRepo}--RepositoryARN"
+              - Resource: !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}"
                 Effect: Allow
                 Action:
                   - ecr:GetDownloadUrlForLayer
@@ -171,8 +175,7 @@ Resources:
         #   - Name: AWS_REGION
         #     Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
-            Value:
-              Fn::ImportValue: !Sub "${AppStackName}-${GitHubRepo}--RepositoryURI"
+            Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, 'build' ] ]
@@ -243,7 +246,7 @@ Resources:
                 StackName: !Sub "${AppStackName}-integration-app-${GitHubRepo}-${GitHubBranch}"
                 Capabilities: CAPABILITY_NAMED_IAM
                 OutputFileName: CloudFormationOutput.json
-                TemplatePath: Template::main.yaml
+                TemplatePath: Template::app.yaml
                 RoleArn: !GetAtt CloudFormationExecutionRole.Arn
                 ParameterOverrides: !Sub |
                   {
@@ -251,7 +254,7 @@ Resources:
                     "FoundationStackName": "${AppStackName}-integration-foundation",
                     "InfraDevBucket": "${InfraDevBucketBase}.integration",
                     "PublicDomainName": "${PublicDomainName}",
-                    "RepositoryURI": "006393696278.dkr.ecr.us-east-1.amazonaws.com/aochsnerdev-bookit-bookit-api-ecr-repo",
+                    "Repository": "${Repository}",
                     "ApplicationName": "${ApplicationName}",
                     "Prefix": "${Prefix}",
                     "ContainerPort": "${ContainerPort}",
