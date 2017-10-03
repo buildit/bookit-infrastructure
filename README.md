@@ -31,12 +31,10 @@ Confirm everything is valid with `make check-env`
 
 ## Makefile Targets
 
-* Run `make create-foundation ENV=<environment>` to start an AWS Bare Rig Foundation Stack.
-
-This is the Stack that will be shared by all management and services in an AWS Region.
-
-* Run `make status-foundation ENV=<environment>` to check status of the stack. (Should be `CREATE_COMPLETE`)
-* Check the outputs as well with `make outputs-foundation ENV=<environment>`
+* Run `make create-foundation ENV=integration` to start an AWS Bare Rig Foundation Stack.  This is syncrhonous and will wait until the stack is created (or fails).  This is the Stack that will be shared by all management and services in an AWS Region.
+  * The Build Pipeline requires an "integration" environment.
+* Run `make status-foundation ENV=integration` to check status of the stack. (Should be `CREATE_COMPLETE`)
+* Check the outputs as well with `make outputs-foundation ENV=integration`
 * Run `make create-build-pipeline REPO=<repo_name> REPO_BRANCH=<branch> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build-pipeline` and outputs `make outputs-build-pipeline`
   * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
