@@ -17,7 +17,7 @@ export AWS_REGION=${REGION}
 # These are created outside Terraform since it'll store sensitive contents!
 # When completely empty, can be destroyed with `make destroy-deps`
 deps:
-	@echo "Create Build Execution Environment Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
+	@echo "Create Build Pipeline Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build --region "${REGION}" # Build artifacts, etc
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --versioning-configuration Status=Enabled --region "${REGION}"
@@ -44,10 +44,6 @@ delete-deps:
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
 
-## Create IAM user used for building the application
-#create-build-user:
-#	@./iam/create-build-user.sh "${OWNER}" "${PROJECT}"
-
 ## Creates Foundation and Build
 
 ## Creates a new CF stack
@@ -73,7 +69,6 @@ create-foundation: deps upload-templates
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"
 
 ## Create new CF Build pipeline stack
 create-build-pipeline: upload-build
