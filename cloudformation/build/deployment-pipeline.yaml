@@ -189,7 +189,7 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
-      Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, 'build' ] ]
+      Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'build' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
   Pipeline:
