@@ -54,14 +54,11 @@ create-foundation: deps upload-templates
 		--disable-rollback \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
-			"ParameterKey=CidrBlock,ParameterValue=10.1.0.0/16" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
-			"ParameterKey=SubnetPrivateCidrBlocks,ParameterValue='10.1.11.0/24,10.1.12.0/24,10.1.13.0/24'" \
-			"ParameterKey=SubnetPublicCidrBlocks,ParameterValue='10.1.1.0/24,10.1.2.0/24,10.1.3.0/24'" \
 			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
@@ -126,14 +123,11 @@ update-foundation: upload-templates
 		--template-body "file://cloudformation/foundation/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
-			"ParameterKey=CidrBlock,ParameterValue=10.1.0.0/16" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
-			"ParameterKey=SubnetPrivateCidrBlocks,ParameterValue='10.1.11.0/24,10.1.12.0/24,10.1.13.0/24'" \
-			"ParameterKey=SubnetPublicCidrBlocks,ParameterValue='10.1.1.0/24,10.1.2.0/24,10.1.3.0/24'" \
 			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
