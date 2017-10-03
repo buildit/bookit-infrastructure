@@ -69,7 +69,7 @@ create-foundation: deps upload-templates
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-foundation"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"
 
 ## Create new CF Build pipeline stack
 create-build-pipeline: upload-build
