@@ -35,14 +35,18 @@ Confirm everything is valid with `make check-env`
   * The Build Pipeline requires an "integration" environment.
 * Run `make status-foundation ENV=integration` to check status of the stack. (Should be `CREATE_COMPLETE`)
 * Check the outputs as well with `make outputs-foundation ENV=integration`
+* Run `make create-foundation ENV=staging`
+* Run `make create-foundation ENV=production`
 * Run `make create-build-pipeline REPO=<repo_name> REPO_BRANCH=<branch> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build-pipeline` and outputs `make outputs-build-pipeline`
   * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.
+  * (optional) PREFIX is what goes in front of the URI of the application.  Defaults to OWNER but for the "real" riglet should be set to blank (e.g. `PREFIX=`)
 
 To delete everything, in order:
 
 * Run `make delete-app ENV=<environment> REPO=<repo_name> REPO_BRANCH=<branch>` to delete the App stacks.
+  * if you deleted the pipeline first, you'll find you can't delete the app stacks because the role that created them is gone.  You'll have to manually delete via aws cli and the `--role-arn` override
 * Run `make delete-build-pipeline REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
 * Run `make delete-foundation ENV=<environment>` to delete the Foundation stack.
 * Run `make delete-deps ENV=<environment>` to delete the required S3 buckets.
