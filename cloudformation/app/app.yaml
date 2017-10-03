@@ -5,7 +5,6 @@ AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
   Environment:
-    Default: tst
     Description: Stack environment
     Type: String
 
@@ -52,6 +51,11 @@ Parameters:
   Tag:
     Type: String
     Default: latest
+
+Conditions:
+  ShouldCreatePreferredCname: !And
+  - !Equals [ !Ref Environment, production ]
+  - !Equals [ !Ref Prefix, "" ]
 
 Resources:
   # LoadBalancer:
@@ -108,7 +112,22 @@ Resources:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
-  elbDNS:
+  AppEnvDns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Sub "${PublicDomainName}."
+      Comment: DNS for ELB.
+      RecordSets:
+      - Name: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+        Type: A
+        AliasTarget:
+          HostedZoneId:
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--CanonicalHostedZoneID"
+          DNSName:
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--DNSName"
+
+  PreferredAppDns:
+    Condition: ShouldCreatePreferredCname
     Type: AWS::Route53::RecordSetGroup
     Properties:
       HostedZoneName: !Sub "${PublicDomainName}."
@@ -218,3 +237,8 @@ Outputs:
   ApplicationUrl:
     Description: URL of the application
     Value: !Sub "https://${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}"
+
+  PreferredApplicationUrl:
+    Condition: ShouldCreatePreferredCname
+    Description: URL of the application
+    Value: !Sub "https://${ApplicationName}.${PublicDomainName}"
