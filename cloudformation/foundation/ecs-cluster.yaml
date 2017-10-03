@@ -4,10 +4,6 @@ Description: ECS Cluster
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
-  AppStackName:
-    Description: App stack name
-    Type: String
-
   ClusterSize:
     Type: Number
     Default: 1
@@ -24,10 +20,7 @@ Parameters:
     Description: Foundation stack name
     Type: String
 
-  ServerSourceSecurityGroup:
-    Type: AWS::EC2::SecurityGroup::Id
-
-  WebSourceSecurityGroup:
+  SourceSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
 
   SshKeyName:
@@ -87,9 +80,7 @@ Resources:
     Properties:
       GroupDescription: !Sub ${AWS::StackName}-hosts
       SecurityGroupIngress:
-        - SourceSecurityGroupId: !Ref ServerSourceSecurityGroup
-          IpProtocol: -1
-        - SourceSecurityGroupId: !Ref WebSourceSecurityGroup
+        - SourceSecurityGroupId: !Ref SourceSecurityGroup
           IpProtocol: -1
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
@@ -97,7 +88,7 @@ Resources:
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Sub ${AppStackName}-ECSCluster
+      ClusterName: !Sub ${FoundationStackName}-ECSCluster
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -111,7 +102,7 @@ Resources:
       DesiredCapacity: !Ref ClusterSize
       Tags:
         - Key: Name
-          Value: !Sub ${AppStackName}--ECSHost
+          Value: !Sub ${FoundationStackName}--ECSHost
           PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:
@@ -171,4 +162,6 @@ Resources:
 
 Outputs:
   ClusterName:
-      Value: !Ref Cluster
+    Export:
+      Name: !Sub "${FoundationStackName}--Cluster"
+    Value: !Ref Cluster

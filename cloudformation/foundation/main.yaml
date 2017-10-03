@@ -10,15 +10,13 @@ Parameters:
     Description: Comma-delimited list of availabilty zones
     Type: CommaDelimitedList
 
-  CidrBlock:
-    Default: 10.1.0.0/16
-    Description: VPC Cidr Block
-    Type: String
-
   Environment:
-    Default: tst
     Description: Stack environment
     Type: String
+    AllowedValues:
+      - integration
+      - staging
+      - production
 
   FoundationBucket:
     Default: rig.awsrig.dmacedo.foundation
@@ -39,16 +37,6 @@ Parameters:
     Description: Region
     Type: String
 
-  SubnetPrivateCidrBlocks:
-    Default: "10.1.11.0/24,10.1.12.0/24"
-    Description: Comma-delimited list of two CIDR blocks for private subnets
-    Type: CommaDelimitedList
-
-  SubnetPublicCidrBlocks:
-    Default: "10.1.1.0/24,10.1.2.0/24"
-    Description: Comma-delimited list of two CIDR blocks for public subnets
-    Type: CommaDelimitedList
-
   CreateHostedZone:
     Default: no
     Description: Whether a new Route 53 hosted zone should be created for this stack.
@@ -57,20 +45,49 @@ Parameters:
       - no
       - yes
 
+  EcsClusterSize:
+    Type: Number
+    Default: 1
+
+  EcsInstanceType:
+    Default: t2.medium
+    Description: Instance type of ECS cluster instance(s)
+    Type: String
+
+  SshKeyName:
+    Description: Name of keypair to use with managed instances.
+    Type: AWS::EC2::KeyPair::KeyName
+
+
 Conditions:
   ShouldCreateHostedZone: !Equals [ !Ref CreateHostedZone, yes ]
+
+Mappings:
+  EnvironmentToCidr:
+    integration:
+      CidrBlock: "10.1.0.0/16"
+      SubnetPublicCidrBlocks: "10.1.1.0/24,10.1.2.0/24"
+      SubnetPrivateCidrBlocks: "10.1.11.0/24,10.1.12.0/24"
+    staging:
+      CidrBlock: "10.2.0.0/16"
+      SubnetPublicCidrBlocks: "10.2.1.0/24,10.2.2.0/24"
+      SubnetPrivateCidrBlocks: "10.2.11.0/24,10.2.12.0/24"
+    production:
+      CidrBlock: "10.3.0.0/16"
+      SubnetPublicCidrBlocks: "10.3.1.0/24,10.3.2.0/24"
+      SubnetPrivateCidrBlocks: "10.3.11.0/24,10.3.12.0/24"
 
 Resources:
   Vpc:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
-        CidrBlock: !Ref CidrBlock
+        CidrBlock: !FindInMap [ EnvironmentToCidr, !Ref Environment, CidrBlock ]
         Environment: !Ref Environment
         FoundationStackName: !Sub ${AWS::StackName}
         Region: !Ref Region
-        SubnetPrivateCidrBlocks: !Join [ ",", !Ref SubnetPrivateCidrBlocks ]
-        SubnetPublicCidrBlocks: !Join [ ",", !Ref SubnetPublicCidrBlocks ]
+        SubnetPrivateCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPrivateCidrBlocks ]
+        SubnetPublicCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPublicCidrBlocks ]
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/vpc.yaml
       TimeoutInMinutes: 60
 
@@ -95,6 +112,28 @@ Resources:
         FoundationStackName: !Sub ${AWS::StackName}
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/nat.yaml
       TimeoutInMinutes: 60
+
+  LoadBalancer:
+    DependsOn:
+      - Vpc
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/load-balancer.yaml
+      Parameters:
+        FoundationStackName: !Sub ${AWS::StackName}
+
+  Cluster:
+    DependsOn:
+      - LoadBalancer
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/ecs-cluster.yaml
+      Parameters:
+        FoundationStackName: !Sub ${AWS::StackName}
+        SourceSecurityGroup: !GetAtt LoadBalancer.Outputs.SecurityGroup
+        InstanceType: !Ref EcsInstanceType
+        ClusterSize: !Ref EcsClusterSize
+        SshKeyName: !Ref SshKeyName
 
 
 Outputs:
