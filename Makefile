@@ -17,11 +17,32 @@ export AWS_REGION=${REGION}
 # These are created outside Terraform since it'll store sensitive contents!
 # When completely empty, can be destroyed with `make destroy-deps`
 deps:
-	@./cloudformation/scripts/create-buckets.sh
+	@echo "Create Build Execution Environment Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build --region "${REGION}" # Build artifacts, etc
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --versioning-configuration Status=Enabled --region "${REGION}"
+
+	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}"  2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}  --region "${REGION}" # Foundation configs
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+
+	@echo "Create App S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} --region "${REGION}" # Storage for InfraDev
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+
+	@echo "Create Build Support Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}" --region "${REGION}" 2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV} --region "${REGION}" # Build artifacts, etc
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
 # Destroy dependency S3 buckets, only destroy if empty
 delete-deps:
-	@./cloudformation/scripts/destroy-buckets.sh
+	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
+	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
+	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
+	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
 
 ## Create IAM user used for building the application
 #create-build-user:
@@ -190,7 +211,7 @@ outputs-foundation:
 status-build-pipeline:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
-		--stack-name "${OWNER}-${PROJECT}-pipeline-${REPO}-${REPO_BRANCH}" \
+		--stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
 		--query "Stacks[][StackStatus] | []" | jq
 
 
@@ -198,7 +219,7 @@ status-build-pipeline:
 outputs-build-pipeline:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
-		--stack-name "${OWNER}-${PROJECT}-pipeline-${REPO}-${REPO_BRANCH}" \
+		--stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Print app stack's status
