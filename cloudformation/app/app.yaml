@@ -39,7 +39,7 @@ Parameters:
     Default: ""
 
   ContainerPort:
-    Type: String
+    Type: Number
 
   DesiredCount:
     Type: Number
@@ -67,7 +67,7 @@ Resources:
     Properties:
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
-      Port: 8080
+      Port: !Ref ContainerPort
       Protocol: HTTP
       Matcher:
         HttpCode: 200-299
