@@ -7,6 +7,7 @@ export OWNER ?= rig-test-bucket
 export PROFILE ?= default
 export PROJECT ?= projectname
 export REGION ?= us-east-1
+export PREFIX ?= ${OWNER}
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
@@ -84,7 +85,7 @@ create-build-pipeline: upload-build
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
-			"ParameterKey=Prefix,ParameterValue=${OWNER}" \
+			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
