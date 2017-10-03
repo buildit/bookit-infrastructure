@@ -223,13 +223,13 @@ delete-foundation:
 	fi
 
 ## Deletes the build pipeline CF stack
-#	$(eval export ECR_REPO = $(shell echo "${OWNER}-${PROJECT}-${REPO}-ecr-repo" ) )
-# $(eval export ECR_COUNT = $(shell aws ecr list-images --repository-name "${ECR_REPO}" | jq -r '.imageIds | length | select (.!=0|0)'))
-# @if [[ "${ECR_COUNT}" != "0" ]]; then \
-# 	echo "${.RED}Can't delete ECS Repository '${ECR_REPO}', there are still ${ECR_COUNT} Docker images on it!${.CLEAR}"; \
-# 	echo "${.YELLOW}[Cancelled]${.CLEAR}" && exit 1 ; \
-# fi;
 delete-build-pipeline:
+	$(eval export ECR_REPO = $(shell echo "${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo"))
+	$(eval export ECR_COUNT = $(shell aws ecr list-images --repository-name "${ECR_REPO}" | jq -r '.imageIds | length | select (.!=0|0)'))
+	@if [[ "${ECR_COUNT}" != "0" ]]; then \
+		echo "${.RED}Can't delete ECS Repository '${ECR_REPO}', there are still ${ECR_COUNT} Docker images on it!${.CLEAR}"; \
+		echo "${.YELLOW}[Cancelled]${.CLEAR}" && exit 1 ; \
+	fi;
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${PROJECT} Pipeline Stack for repo: ${REPO} branch: ${REPO_BRANCH}?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"; \

@@ -41,8 +41,8 @@ This is the Stack that will be shared by all management and services in an AWS R
 
 To delete everything, in order:
 
+* Run `make delete-app ENV=<environment> REPO=<repo_name> REPO_BRANCH=<branch>` to delete the App stacks.
 * Run `make delete-build-pipeline REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
-* Run `make delete-app ENV=<environment> REPO=<repo_name> REPO_BRANCH=<branch>` to delete the App stack.
 * Run `make delete-foundation ENV=<environment>` to delete the Foundation stack.
 * Run `make delete-deps ENV=<environment>` to delete the required S3 buckets.
 
