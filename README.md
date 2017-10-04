@@ -16,7 +16,6 @@ and save in a new file `.make`:
 
 ```
 DOMAIN = <Domain to use for Foundation>
-EMAIL = <User contact e-mail>
 KEY_NAME = <EC2 SSH key name>
 OWNER = <The owner of the stack, either personal or corporate>
 PROFILE = <AWS Profile Name>
@@ -26,6 +25,17 @@ REPO_TOKEN = <Github OAuth or Personal Access Token>
 ```
 
 Or also done interactively through `make .make`.
+
+For the "real" bookit riglet:
+```
+DOMAIN = buildit.tools
+KEY_NAME = buildit-bookit-ssh-keypair
+OWNER = buildit
+PROFILE = default
+PROJECT = bookit
+REPO_TOKEN = <ask a team member>
+REGION = us-east-1
+```
 
 Confirm everything is valid with `make check-env`
 
@@ -50,6 +60,14 @@ To delete everything, in order:
 * Run `make delete-build-pipeline REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
 * Run `make delete-foundation ENV=<environment>` to delete the Foundation stack.
 * Run `make delete-deps ENV=<environment>` to delete the required S3 buckets.
+
+## Environment specifics
+
+| Environment | CidrBlock |
+| ------------- | ------------- |
+| integration  | 10.1.0.0/16  |
+| staging  | 10.2.0.0/16  |
+| production  | 10.3.0.0/16  |
 
 ## Architectural Decisions
 

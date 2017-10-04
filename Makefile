@@ -1,7 +1,6 @@
 include .make
 
 export DOMAIN ?= example.tld
-export EMAIL ?= user@example.com
 export KEY_NAME ?= ""
 export OWNER ?= rig-test-bucket
 export PROFILE ?= default
@@ -63,7 +62,6 @@ create-foundation: deps upload-templates
 			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
-			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -89,7 +87,6 @@ create-build-pipeline: upload-build
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
-			"Key=Email,Value=${EMAIL}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"
@@ -111,7 +108,6 @@ create-app: deps upload-app
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
-			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -132,7 +128,6 @@ update-foundation: upload-templates
 			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
-			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -157,7 +152,6 @@ update-build-pipeline: upload-build
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
-			"Key=Email,Value=${EMAIL}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"
@@ -178,7 +172,6 @@ update-app: deps upload-app
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
-			"Key=Email,Value=${EMAIL}" \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -289,17 +282,8 @@ endif
 ifndef DOMAIN
 	$(error DOMAIN is undefined, should be in file .make)
 endif
-ifndef EMAIL
-	$(error EMAIL is undefined, should be in file .make)
-endif
-ifndef ENV
-	$(error ENV is undefined, should be in file .make)
-endif
 ifndef KEY_NAME
 	$(error KEY_NAME is undefined, should be in file .make)
-endif
-ifndef OWNER
-	$(error OWNER is undefined, should be in file .make)
 endif
 ifndef PROFILE
 	$(error PROFILE is undefined, should be in file .make)

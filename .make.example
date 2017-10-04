@@ -1,5 +1,4 @@
 DOMAIN = example.tld
-EMAIL = jdoe@example.com
 KEY_NAME = username-us-east-1-keypair
 OWNER = jdoe
 PROFILE = default

@@ -3,7 +3,6 @@
 echo 'Please fill in the config settings to store in your .make'
 echo
 read -p 'Domain: ' domain
-read -p 'Your e-mail: ' email
 read -p 'AWS SSH keyname: ' keyname
 read -p 'Owner of riglet: ' owner
 read -p 'AWS Profile: ' profile
@@ -14,7 +13,6 @@ echo
 
 cat << EOF > .make
 DOMAIN = ${domain}
-EMAIL = ${email}
 KEY_NAME = ${keyname}
 OWNER = ${owner}
 PROFILE = ${profile}
