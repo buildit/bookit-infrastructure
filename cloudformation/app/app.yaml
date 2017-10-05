@@ -84,6 +84,20 @@ Resources:
         - Key: deregistration_delay.timeout_seconds
           Value: 30
 
+  AppEnvDns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Sub "${PublicDomainName}."
+      Comment: DNS for ELB.
+      RecordSets:
+      - Name: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+        Type: A
+        AliasTarget:
+          HostedZoneId:
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--CanonicalHostedZoneID"
+          DNSName:
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--DNSName"
+
   ListenerRuleHttp:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
@@ -112,13 +126,14 @@ Resources:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
-  AppEnvDns:
+  PreferredAppDns:
+    Condition: ShouldCreatePreferredCname
     Type: AWS::Route53::RecordSetGroup
     Properties:
       HostedZoneName: !Sub "${PublicDomainName}."
-      Comment: DNS for ELB.
+      Comment: Preferred ProductionDNS for ALB.
       RecordSets:
-      - Name: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+      - Name: !Sub "${Prefix}${ApplicationName}.${PublicDomainName}."
         Type: A
         AliasTarget:
           HostedZoneId:
@@ -126,20 +141,35 @@ Resources:
           DNSName:
             Fn::ImportValue: !Sub "${FoundationStackName}--ALB--DNSName"
 
-  PreferredAppDns:
+  PreferredListenerRuleHttp:
     Condition: ShouldCreatePreferredCname
-    Type: AWS::Route53::RecordSetGroup
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      HostedZoneName: !Sub "${PublicDomainName}."
-      Comment: DNS for ELB.
-      RecordSets:
-      - Name: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
-        Type: A
-        AliasTarget:
-          HostedZoneId:
-            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--CanonicalHostedZoneID"
-          DNSName:
-            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--DNSName"
+      ListenerArn:
+        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpListener"
+      Priority: !Sub "${ListenerRulePriority}9"
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub "${Prefix}${ApplicationName}.${PublicDomainName}"
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+
+  PreferredListenerRuleHttps:
+    Condition: ShouldCreatePreferredCname
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn:
+        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpsListener"
+      Priority: !Sub "${ListenerRulePriority}9"
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub "${Prefix}${ApplicationName}.${PublicDomainName}"
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
 
   # ECSService:
   #   Type: AWS::CloudFormation::Stack
@@ -241,4 +271,4 @@ Outputs:
   PreferredApplicationUrl:
     Condition: ShouldCreatePreferredCname
     Description: URL of the application
-    Value: !Sub "https://${ApplicationName}.${PublicDomainName}"
+    Value: !Sub "https://${Prefix}${ApplicationName}.${PublicDomainName}"
