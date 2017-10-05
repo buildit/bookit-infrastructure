@@ -12,6 +12,10 @@ Parameters:
     Description: Foundation stack name
     Type: String
 
+  ComputeStackName:
+    Description: Compute stack name
+    Type: String
+
   InfraDevBucket:
     Description: App S3 Bucket
     Type: String
@@ -202,7 +206,7 @@ Resources:
     Type: AWS::ECS::Service
     Properties:
       Cluster:
-        Fn::ImportValue: !Sub "${FoundationStackName}--Cluster"
+        Fn::ImportValue: !Sub "${ComputeStackName}--Cluster"
       Role: !Ref ECSServiceRole
       DesiredCount: !Ref DesiredCount
       TaskDefinition: !Ref TaskDefinition

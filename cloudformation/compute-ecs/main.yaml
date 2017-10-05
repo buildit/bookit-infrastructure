@@ -5,7 +5,7 @@ AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
   FoundationStackName:
-    Description: Foundation stack name
+    Description: Foundation stack name upon which this cluster is installed.
     Type: String
 
   ClusterSize:
@@ -83,7 +83,7 @@ Resources:
       GroupDescription: !Sub ${AWS::StackName}-hosts
       SecurityGroupIngress:
         - SourceSecurityGroupId:
-            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--SecurityGroup"
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--SG"
           IpProtocol: -1
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
@@ -91,7 +91,7 @@ Resources:
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Sub ${FoundationStackName}-ECSCluster
+      ClusterName: !Sub ${AWS::StackName}-ECSCluster
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -166,5 +166,7 @@ Resources:
 Outputs:
   ClusterName:
     Export:
-      Name: !Sub "${FoundationStackName}--Cluster"
+      Name: !Sub "${AWS::StackName}--Cluster"
     Value: !Ref Cluster
+  AutoScalingGroup:
+    Value: !Ref AutoScalingGroup

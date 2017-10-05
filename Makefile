@@ -65,7 +65,6 @@ create-foundation: deps upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
-			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -73,8 +72,8 @@ create-foundation: deps upload-templates
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"
 
 ## Create new CF Build pipeline stack
-create-compute: upload-compute-ecs
-	@aws cloudformation create-stack --stack-name "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" \
+create-compute: upload-compute
+	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
                 --disable-rollback \
 		--template-body "file://cloudformation/compute-ecs/main.yaml" \
@@ -82,10 +81,11 @@ create-compute: upload-compute-ecs
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=InstanceType,ParameterValue=t2.small" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-create-complete --stack-name "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"
 
 ## Create new CF Build pipeline stack
 create-build-pipeline: upload-build
@@ -145,7 +145,6 @@ update-foundation: upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
-			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
@@ -153,20 +152,20 @@ update-foundation: upload-templates
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"
 
-## Update new CF Build pipeline stack
-update-compute: upload-compute-ecs
-	@aws cloudformation update-stack --stack-name "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" \
+## Create new CF Build pipeline stack
+update-compute: upload-compute
+	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
-                --disable-rollback \
 		--template-body "file://cloudformation/compute-ecs/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=InstanceType,ParameterValue=t2.small" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-update-complete --stack-name "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"
 
 ## Update existing Build Pipeline CF Stack
 update-build-pipeline: upload-build
@@ -315,7 +314,7 @@ upload-app-deployment:
 
 ## Upload Compute ECS Templates
 upload-compute-ecs:
-	@aws s3 cp --recursive cloudformation/compute-ecs/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs/templates/
+	@aws s3 cp --recursive cloudformation/compute-ecs/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}/templates/
 
 ## Upload Build CF Templates
 upload-build:
