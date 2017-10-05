@@ -40,13 +40,16 @@ REGION = us-east-1
 Confirm everything is valid with `make check-env`
 
 ## Makefile Targets
-
-* Run `make create-foundation ENV=integration` to start an AWS Bare Rig Foundation Stack.  This is syncrhonous and will wait until the stack is created (or fails).  This is the Stack that will be shared by all management and services in an AWS Region.
-  * The Build Pipeline requires an "integration" environment.
-* Run `make status-foundation ENV=integration` to check status of the stack. (Should be `CREATE_COMPLETE`)
-* Check the outputs as well with `make outputs-foundation ENV=integration`
+The full build pipeline requires at least integration, staging, and production environments, so the typical
+installation is: 
+* Run `make create-foundation ENV=integration`
+* Run `make create-compute ENV=integration`
 * Run `make create-foundation ENV=staging`
+* Run `make create-compute ENV=staging`
 * Run `make create-foundation ENV=production`
+* Run `make create-compute ENV=production`
+* Check the outputs of the above with `make outputs-foundation ENV=<environment>`
+* Check the status of the above with `make status-foundation ENV=<environment>`
 * Run `make create-build-pipeline REPO=<repo_name> REPO_BRANCH=<branch> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build-pipeline` and outputs `make outputs-build-pipeline`
   * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
@@ -58,6 +61,7 @@ To delete everything, in order:
 * Run `make delete-app ENV=<environment> REPO=<repo_name> REPO_BRANCH=<branch>` to delete the App stacks.
   * if you deleted the pipeline first, you'll find you can't delete the app stacks because the role that created them is gone.  You'll have to manually delete via aws cli and the `--role-arn` override
 * Run `make delete-build-pipeline REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
+* Run `make delete-compute ENV=<environment>` to delete the Compute stack.
 * Run `make delete-foundation ENV=<environment>` to delete the Foundation stack.
 * Run `make delete-deps ENV=<environment>` to delete the required S3 buckets.
 

@@ -4,6 +4,10 @@ Description: ECS Cluster
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
+  FoundationStackName:
+    Description: Foundation stack name
+    Type: String
+
   ClusterSize:
     Type: Number
     Default: 1
@@ -14,14 +18,12 @@ Parameters:
 
   InstanceType:
     Type: String
-    Default: t2.medium
-
-  FoundationStackName:
-    Description: Foundation stack name
-    Type: String
-
-  SourceSecurityGroup:
-    Type: AWS::EC2::SecurityGroup::Id
+    Default: t2.small
+    AllowedValues:
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
 
   SshKeyName:
     Type: AWS::EC2::KeyPair::KeyName
@@ -80,7 +82,8 @@ Resources:
     Properties:
       GroupDescription: !Sub ${AWS::StackName}-hosts
       SecurityGroupIngress:
-        - SourceSecurityGroupId: !Ref SourceSecurityGroup
+        - SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--SecurityGroup"
           IpProtocol: -1
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"

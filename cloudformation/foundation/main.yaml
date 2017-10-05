@@ -140,3 +140,10 @@ Outputs:
   FoundationVpcId:
     Description: VPC Id
     Value: !GetAtt Vpc.Outputs.VpcId
+
+  PublicLoadBalancerSecurityGroup:
+    Export:
+      Name: !Sub "${FoundationStackName}--ALB--SecurityGroup"
+    Description: Security group of public load balancer
+    Value: !GetAtt LoadBalancer.Outputs.SecurityGroup
+
