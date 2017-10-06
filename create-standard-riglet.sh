@@ -9,11 +9,11 @@ printf  "\n${YELLOW}This command creates a full riglet based on the environment 
 read -p "Are you sure you want to proceed?  " -n 1 -r
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-#  echo "Y" | make create-foundation ENV=integration
+  echo "Y" | make create-foundation ENV=integration
   echo "Y" | make create-compute ENV=integration
-#  echo "Y" | make create-foundation ENV=staging
+  echo "Y" | make create-foundation ENV=staging
   echo "Y" | make create-compute ENV=staging
-#  echo "Y" | make create-foundation ENV=production
+  echo "Y" | make create-foundation ENV=production
   echo "Y" | make create-compute ENV=production
 
   echo "Y" | make create-build REPO=bookit-api REPO_BRANCH=master CONTAINER_PORT=8080 LISTENER_RULE_PRIORITY=10
