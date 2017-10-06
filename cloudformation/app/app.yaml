@@ -75,7 +75,7 @@ Resources:
     Properties:
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
-      Port: !Ref ContainerPort
+      Port: 80
       Protocol: HTTP
       Matcher:
         HttpCode: 200-299
@@ -254,7 +254,6 @@ Resources:
           Memory: 256
           PortMappings:
             - ContainerPort: !Ref ContainerPort
-              HostPort: 0
           Environment:
             - Name: Tag
               Value: !Ref Tag
