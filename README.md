@@ -39,6 +39,10 @@ REGION = us-east-1
 
 Confirm everything is valid with `make check-env`
 
+## Feeling Lucky?
+ - `./create-standard-riglet.sh` to create a full riglet with standard environments.
+ - `./delete-standard-riglet.sh` to delete it all.
+
 ## Makefile Targets
 The full build pipeline requires at least integration, staging, and production environments, so the typical
 installation is: 

@@ -44,7 +44,7 @@ Parameters:
   ContainerPort:
     Type: Number
 
-  DesiredCount:
+  TaskDesiredCount:
     Type: Number
     Default: 0
 
@@ -181,7 +181,7 @@ Resources:
   #     TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
   #     Parameters:
   #       Tag: !Sub "${Environment}"
-  #       DesiredCount: 0
+  #       TaskDesiredCount: 0
   #       Cluster: !Ref Cluster
   #       TargetGroup: !GetAtt LoadBalancer.Outputs.TargetGroup
   #       Repository: !Ref Repository
@@ -208,7 +208,7 @@ Resources:
       Cluster:
         Fn::ImportValue: !Sub "${ComputeStackName}--Cluster"
       Role: !Ref ECSServiceRole
-      DesiredCount: !Ref DesiredCount
+      DesiredCount: !Ref TaskDesiredCount
       TaskDefinition: !Ref TaskDefinition
       LoadBalancers:
         - ContainerName: !Ref ApplicationName

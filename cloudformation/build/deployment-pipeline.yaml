@@ -296,7 +296,7 @@ Resources:
                     "ApplicationName": "${ApplicationName}",
                     "Prefix": "${Prefix}",
                     "ContainerPort": "${ContainerPort}",
-                    "DesiredCount":"1",
+                    "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
@@ -332,7 +332,7 @@ Resources:
                     "ApplicationName": "${ApplicationName}",
                     "Prefix": "${Prefix}",
                     "ContainerPort": "${ContainerPort}",
-                    "DesiredCount":"1",
+                    "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
@@ -371,7 +371,7 @@ Resources:
                     "ApplicationName": "${ApplicationName}",
                     "Prefix": "${Prefix}",
                     "ContainerPort": "${ContainerPort}",
-                    "DesiredCount":"1",
+                    "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }

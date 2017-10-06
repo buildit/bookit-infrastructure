@@ -17,7 +17,7 @@ export AWS_REGION=${REGION}
 # These are created outside Terraform since it'll store sensitive contents!
 # When completely empty, can be destroyed with `make destroy-deps`
 deps:
-	@echo "Create Build Pipeline Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
+	@echo "Create Build Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build --region "${REGION}" # Build artifacts, etc
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --versioning-configuration Status=Enabled --region "${REGION}"
@@ -27,7 +27,7 @@ deps:
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}  --region "${REGION}" # Foundation configs
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
-	@echo "Create Compute-ECS S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
+	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}"  2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Foundation configs
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
@@ -88,7 +88,7 @@ create-compute: upload-compute
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"
 
 ## Create new CF Build pipeline stack
-create-build-pipeline: upload-build
+create-build: upload-build
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -168,7 +168,7 @@ update-compute: upload-compute
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"
 
 ## Update existing Build Pipeline CF Stack
-update-build-pipeline: upload-build
+update-build: upload-build
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/build/deployment-pipeline.yaml" \
@@ -226,7 +226,7 @@ outputs-foundation:
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Print build pipeline stack's status
-status-build-pipeline:
+status-build:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
@@ -234,7 +234,7 @@ status-build-pipeline:
 
 
 ## Print build pipeline stack's outputs
-outputs-build-pipeline:
+outputs-build:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
@@ -254,6 +254,7 @@ outputs-app:
 		--stack-name "$${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
 		--query "Stacks[][Outputs] | []" | jq
 
+
 ## Deletes the Foundation CF stack
 delete-foundation:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Foundation Stack?"; then \
@@ -263,13 +264,13 @@ delete-foundation:
 
 ## Deletes the Foundation CF stack
 delete-compute:
-	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Compute-ECS Stack?"; then \
+	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Compute Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"; \
 	fi
 
 ## Deletes the build pipeline CF stack
-delete-build-pipeline:
+delete-build:
 	$(eval export ECR_REPO = $(shell echo "${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo"))
 	$(eval export ECR_COUNT = $(shell aws ecr list-images --repository-name "${ECR_REPO}" | jq -r '.imageIds | length | select (.!=0|0)'))
 	@if [[ "${ECR_COUNT}" != "0" ]]; then \
@@ -313,7 +314,7 @@ upload-app-deployment:
 	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}/app-deployment/
 
 ## Upload Compute ECS Templates
-upload-compute-ecs:
+upload-compute:
 	@aws s3 cp --recursive cloudformation/compute-ecs/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}/templates/
 
 ## Upload Build CF Templates
@@ -363,7 +364,7 @@ help:
 # Re-usable target for yes no prompt. Usage: make .prompt-yesno message="Is it yes or no?"
 # Will exit with error if not yes
 .prompt-yesno:
-	$(eval export RESPONSE="${shell read -t5 -n1 -p "${message} [Yy]: " && echo "$$REPLY" | tr -d '[:space:]'}")
+	$(eval export RESPONSE="${shell read -t30 -n1 -p "${message} [Yy]: " && echo "$$REPLY" | tr -d '[:space:]'}")
 	@case ${RESPONSE} in [Yy]) \
 			echo "\n${.GREEN}[Continuing]${.CLEAR}" ;; \
 		*) \
