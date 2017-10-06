@@ -11,7 +11,7 @@ printf "\n${YELLOW}***${NC} For a clean deletion you must delete the images cont
 
 printf "${RED}This will delete the riglet environment described above.${NC}\n"
 read -p "Are you sure you want to proceed?  " -n 1 -r
-echo    # (optional) move to a new line
+echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
   echo "Y" | make delete-app ENV=integration REPO=bookit-api REPO_BRANCH=${BRANCH}

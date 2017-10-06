@@ -7,6 +7,7 @@ cat .make
 
 printf  "\n${YELLOW}This command creates a full riglet based on the environment described above.${NC}\n"
 read -p "Are you sure you want to proceed?  " -n 1 -r
+echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
   echo "Y" | make create-foundation ENV=integration
