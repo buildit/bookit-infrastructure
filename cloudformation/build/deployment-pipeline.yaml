@@ -42,6 +42,14 @@ Parameters:
     Description: The unique priority across applications sharing the ALB
     Type: Number
 
+  SlackChannel:
+    Description: Slack channel (no \#) to post to
+    Type: String
+    Default: ""
+
+# Conditions:
+#   ShouldCreateSns: !Not [ Equals [ !Ref SlackChannel, "" ] ]
+
 Resources:
   Repository:
     Type: AWS::ECR::Repository
@@ -49,11 +57,12 @@ Resources:
       RepositoryName: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'ecr', 'repo' ] ]
 
 #  CodePipelineSNSTopic:
+#     Condition: ShouldCreateSns
 #     Type: AWS::SNS::Topic
 #     Properties:
 #       Subscription:
-#         - Endpoint: !Ref Email
-#           Protocol: email
+#         - Endpoint: "https://hooks.slack.com/services/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"
+#           Protocol: https
 
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
@@ -167,6 +176,7 @@ Resources:
                   - codebuild:BatchGetBuilds
                   - cloudformation:*
                   - iam:PassRole
+                  - sns:Publish
 
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -379,9 +389,20 @@ Resources:
                 Owner: AWS
                 Provider: Manual
                 Version: '1'
-              # Configuration:
-              #   NotificationArn: !Ref CodePipelineSNSTopic
-              #   CustomData: !Sub 'A new change set was created for the ${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch} stack. Do you want to implement the changes?'
+        #       Configuration:
+        #         NotificationArn: !Ref CodePipelineSNSTopic
+        #         CustomData: !Sub |
+        #           {
+        #             "icon_emjoi": ":tada:",
+        #             "username": "AWS CodePipeline Overlord",
+        #             "channel": "${SlackChannel}",
+        #             "fallback": "",
+        #             "color":
+        # "Build Failed - Staging - Branch: ${env.BRANCH_NAME}",
+        # "(<${env.BUILD_URL}|Failed Job>) Commit '<${gitUrl}/commits/${shortCommitHash}|${shortCommitHash}>' failed.\n\n${commitMessage}",
+        # "danger",
+        #             ""'A new change set was created for the ${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch} stack. Do you want to implement the changes?'
+        #           }
               RunOrder: 2
             - Name: ExecuteChangeSet
               ActionTypeId:
