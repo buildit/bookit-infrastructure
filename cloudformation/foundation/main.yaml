@@ -5,11 +5,6 @@ Description: AWS Foundation Template
 
 
 Parameters:
-  AvailabilityZones:
-    Default: us-east-1a,us-east-1b
-    Description: Comma-delimited list of availabilty zones
-    Type: CommaDelimitedList
-
   Environment:
     Description: Stack environment
     Type: String
@@ -44,19 +39,6 @@ Parameters:
     AllowedValues:
       - no
       - yes
-
-  EcsClusterSize:
-    Type: Number
-    Default: 1
-
-  EcsInstanceType:
-    Default: t2.medium
-    Description: Instance type of ECS cluster instance(s)
-    Type: String
-
-  SshKeyName:
-    Description: Name of keypair to use with managed instances.
-    Type: AWS::EC2::KeyPair::KeyName
 
 
 Conditions:
@@ -122,21 +104,14 @@ Resources:
       Parameters:
         FoundationStackName: !Sub ${AWS::StackName}
 
-  Cluster:
-    DependsOn:
-      - LoadBalancer
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/ecs-cluster.yaml
-      Parameters:
-        FoundationStackName: !Sub ${AWS::StackName}
-        SourceSecurityGroup: !GetAtt LoadBalancer.Outputs.SecurityGroup
-        InstanceType: !Ref EcsInstanceType
-        ClusterSize: !Ref EcsClusterSize
-        SshKeyName: !Ref SshKeyName
-
-
 Outputs:
   FoundationVpcId:
     Description: VPC Id
     Value: !GetAtt Vpc.Outputs.VpcId
+
+  PublicLoadBalancerSecurityGroup:
+    Description: Security group of public load balancer
+    Value: !GetAtt LoadBalancer.Outputs.SecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}--ALB--SG"
+

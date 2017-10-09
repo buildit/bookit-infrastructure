@@ -299,13 +299,14 @@ Resources:
                   {
                     "Environment": "integration",
                     "FoundationStackName": "${AppStackName}-integration-foundation",
+                    "ComputeStackName": "${AppStackName}-integration-compute-ecs",
                     "InfraDevBucket": "${InfraDevBucketBase}.integration",
                     "PublicDomainName": "${PublicDomainName}",
                     "Repository": "${Repository}",
                     "ApplicationName": "${ApplicationName}",
                     "Prefix": "${Prefix}",
                     "ContainerPort": "${ContainerPort}",
-                    "DesiredCount":"1",
+                    "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
@@ -334,13 +335,14 @@ Resources:
                   {
                     "Environment": "staging",
                     "FoundationStackName": "${AppStackName}-staging-foundation",
+                    "ComputeStackName": "${AppStackName}-staging-compute-ecs",
                     "InfraDevBucket": "${InfraDevBucketBase}.staging",
                     "PublicDomainName": "${PublicDomainName}",
                     "Repository": "${Repository}",
                     "ApplicationName": "${ApplicationName}",
                     "Prefix": "${Prefix}",
                     "ContainerPort": "${ContainerPort}",
-                    "DesiredCount":"1",
+                    "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
@@ -372,13 +374,14 @@ Resources:
                   {
                     "Environment": "production",
                     "FoundationStackName": "${AppStackName}-production-foundation",
+                    "ComputeStackName": "${AppStackName}-production-compute-ecs",
                     "InfraDevBucket": "${InfraDevBucketBase}.production",
                     "PublicDomainName": "${PublicDomainName}",
                     "Repository": "${Repository}",
                     "ApplicationName": "${ApplicationName}",
                     "Prefix": "${Prefix}",
                     "ContainerPort": "${ContainerPort}",
-                    "DesiredCount":"1",
+                    "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }

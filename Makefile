@@ -17,7 +17,7 @@ export AWS_REGION=${REGION}
 # These are created outside Terraform since it'll store sensitive contents!
 # When completely empty, can be destroyed with `make destroy-deps`
 deps:
-	@echo "Create Build Pipeline Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
+	@echo "Create Build Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build --region "${REGION}" # Build artifacts, etc
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --versioning-configuration Status=Enabled --region "${REGION}"
@@ -26,6 +26,11 @@ deps:
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}"  2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}  --region "${REGION}" # Foundation configs
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+
+	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}"  2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Foundation configs
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
 	@echo "Create App S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null || \
@@ -40,6 +45,7 @@ deps:
 # Destroy dependency S3 buckets, only destroy if empty
 delete-deps:
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
+	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
 	# @aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
@@ -59,16 +65,33 @@ create-foundation: deps upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
-			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
-			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation --region ${REGION}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}
+
+## Create new CF compute stack
+create-compute: upload-compute
+	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+                --region ${REGION} \
+                --disable-rollback \
+		--template-body "file://cloudformation/compute-ecs/main.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=InstanceType,ParameterValue=t2.small" \
+		--tags \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
+
+## Create new CF environment stacks
+create-environment: create-foundation create-compute
 
 ## Create new CF Build pipeline stack
-create-build-pipeline: upload-build
+create-build: upload-build
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -89,9 +112,9 @@ create-build-pipeline: upload-build
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH} --region ${REGION}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
-## Create new CF Build pipeline stack
+## Create new CF app stack
 create-app: deps upload-app
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
@@ -111,7 +134,7 @@ create-app: deps upload-app
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH} --region ${REGION}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
 ## Updates existing Foundation CF stack
 update-foundation: upload-templates
@@ -125,16 +148,33 @@ update-foundation: upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=Region,ParameterValue=${REGION}" \
-			"ParameterKey=EcsInstanceType,ParameterValue=t2.small" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation --region ${REGION}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}
+
+## Update CF compute stack
+update-compute: upload-compute
+	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+                --region ${REGION} \
+		--template-body "file://cloudformation/compute-ecs/main.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=InstanceType,ParameterValue=t2.small" \
+		--tags \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
+
+## Update CF environment stacks
+update-environment: update-foundation update-compute
 
 ## Update existing Build Pipeline CF Stack
-update-build-pipeline: upload-build
+update-build: upload-build
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/build/deployment-pipeline.yaml" \
@@ -175,7 +215,7 @@ update-app: deps upload-app
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app --region ${REGION}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app" --region ${REGION}
 
 ## Print Foundation stack's status
 status-foundation:
@@ -191,8 +231,28 @@ outputs-foundation:
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
 		--query "Stacks[][Outputs] | []" | jq
 
+## Print Compute stack's status
+status-compute:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+		--query "Stacks[][StackStatus] | []" | jq
+
+## Print Compute stack's outputs
+outputs-compute:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+		--query "Stacks[][Outputs] | []" | jq
+
+## Print Environment stacks' status
+status-environment: status-foundation status-compute
+
+## Print Environment stacks' output
+outputs-environment: outputs-foundation outputs-compute
+
 ## Print build pipeline stack's status
-status-build-pipeline:
+status-build:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
@@ -200,7 +260,7 @@ status-build-pipeline:
 
 
 ## Print build pipeline stack's outputs
-outputs-build-pipeline:
+outputs-build:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
@@ -220,15 +280,26 @@ outputs-app:
 		--stack-name "$${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
 		--query "Stacks[][Outputs] | []" | jq
 
+
 ## Deletes the Foundation CF stack
 delete-foundation:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Foundation Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"; \
-		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation --region ${REGION}"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}; \
 	fi
 
+## Deletes the Compute CF stack
+delete-compute:
+	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Compute Stack?"; then \
+		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}; \
+	fi
+
+## Deletes the Environment CF stacks
+delete-environment: delete-compute delete-foundation
+
 ## Deletes the build pipeline CF stack
-delete-build-pipeline:
+delete-build:
 	$(eval export ECR_REPO = $(shell echo "${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo"))
 	$(eval export ECR_COUNT = $(shell aws ecr list-images --repository-name "${ECR_REPO}" | jq -r '.imageIds | length | select (.!=0|0)'))
 	@if [[ "${ECR_COUNT}" != "0" ]]; then \
@@ -237,14 +308,14 @@ delete-build-pipeline:
 	fi;
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${PROJECT} Pipeline Stack for repo: ${REPO} branch: ${REPO_BRANCH}?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"; \
-		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH} --region ${REGION}"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}; \
 	fi
 
 ## Deletes the app CF stack
 delete-app:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the App Stack for environment: ${ENV} repo: ${REPO} branch: ${REPO_BRANCH}?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}"; \
-		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH} --region ${REGION}"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" --region ${REGION}; \
 	fi
 
 upload-templates: upload-foundation upload-app
@@ -269,7 +340,11 @@ upload-app: upload-app-deployment
 # Uploads the build support scripts to the build-support bucket.  These scripts can be used by external
 # build tools (Jenkins, Travis, etc.) to push images to ECR, deploy to ECS, etc.
 upload-app-deployment:
-	# @aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}/app-deployment/
+#	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}/app-deployment/
+
+## Upload Compute ECS Templates
+upload-compute:
+	@aws s3 cp --recursive cloudformation/compute-ecs/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}/templates/
 
 ## Upload Build CF Templates
 upload-build:
@@ -318,7 +393,7 @@ help:
 # Re-usable target for yes no prompt. Usage: make .prompt-yesno message="Is it yes or no?"
 # Will exit with error if not yes
 .prompt-yesno:
-	$(eval export RESPONSE="${shell read -t5 -n1 -p "${message} [Yy]: " && echo "$$REPLY" | tr -d '[:space:]'}")
+	$(eval export RESPONSE="${shell read -t30 -n1 -p "${message} [Yy]: " && echo "$$REPLY" | tr -d '[:space:]'}")
 	@case ${RESPONSE} in [Yy]) \
 			echo "\n${.GREEN}[Continuing]${.CLEAR}" ;; \
 		*) \
