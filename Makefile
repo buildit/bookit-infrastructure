@@ -71,7 +71,7 @@ create-foundation: deps upload-templates
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}
 
-## Create new CF Build pipeline stack
+## Create new CF compute stack
 create-compute: upload-compute
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
@@ -86,6 +86,9 @@ create-compute: upload-compute
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
+
+## Create new CF environment stacks
+create-environment: create-foundation create-compute
 
 ## Create new CF Build pipeline stack
 create-build: upload-build
@@ -111,7 +114,7 @@ create-build: upload-build
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
-## Create new CF Build pipeline stack
+## Create new CF app stack
 create-app: deps upload-app
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
@@ -152,7 +155,7 @@ update-foundation: upload-templates
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}
 
-## Create new CF Build pipeline stack
+## Update CF compute stack
 update-compute: upload-compute
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
@@ -166,6 +169,9 @@ update-compute: upload-compute
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
+
+## Update CF environment stacks
+update-environment: update-foundation update-compute
 
 ## Update existing Build Pipeline CF Stack
 update-build: upload-build
@@ -225,6 +231,26 @@ outputs-foundation:
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
 		--query "Stacks[][Outputs] | []" | jq
 
+## Print Compute stack's status
+status-compute:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+		--query "Stacks[][StackStatus] | []" | jq
+
+## Print Compute stack's outputs
+outputs-compute:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+		--query "Stacks[][Outputs] | []" | jq
+
+## Print Environment stacks' status
+status-environment: status-foundation status-compute
+
+## Print Environment stacks' output
+outputs-environment: outputs-foundation outputs-compute
+
 ## Print build pipeline stack's status
 status-build:
 	@aws cloudformation describe-stacks \
@@ -262,12 +288,15 @@ delete-foundation:
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}; \
 	fi
 
-## Deletes the Foundation CF stack
+## Deletes the Compute CF stack
 delete-compute:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Compute Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}; \
 	fi
+
+## Deletes the Environment CF stacks
+delete-environment: delete-compute delete-foundation
 
 ## Deletes the build pipeline CF stack
 delete-build:
@@ -311,7 +340,7 @@ upload-app: upload-app-deployment
 # Uploads the build support scripts to the build-support bucket.  These scripts can be used by external
 # build tools (Jenkins, Travis, etc.) to push images to ECR, deploy to ECS, etc.
 upload-app-deployment:
-	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}/app-deployment/
+#	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}/app-deployment/
 
 ## Upload Compute ECS Templates
 upload-compute:
