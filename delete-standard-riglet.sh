@@ -17,8 +17,13 @@ then
   echo "Y" | make delete-app ENV=integration REPO=bookit-api REPO_BRANCH=${BRANCH}
   echo "Y" | make delete-app ENV=staging REPO=bookit-api REPO_BRANCH=${BRANCH}
   echo "Y" | make delete-app ENV=production REPO=bookit-api REPO_BRANCH=${BRANCH}
+  echo "Y" | make delete-build REPO=bookit-api REPO_BRANCH=${BRANCH}
 
-  echo "Y" | make delete-build REPO=bookit-api REPO_BRANCH=${BRANCH} CONTAINER_PORT=8080 LISTENER_RULE_PRIORITY=10
+  echo "Y" | make delete-app ENV=integration REPO=bookit-client-react REPO_BRANCH=${BRANCH}
+  echo "Y" | make delete-app ENV=staging REPO=bookit-client-react REPO_BRANCH=${BRANCH}
+  echo "Y" | make delete-app ENV=production REPO=bookit-client-react REPO_BRANCH=${BRANCH}
+  echo "Y" | make delete-build REPO=bookit-client-react REPO_BRANCH=${BRANCH}
+
   echo "Y" | make delete-compute ENV=integration
   echo "Y" | make delete-foundation ENV=integration
   echo "Y" | make delete-compute ENV=staging

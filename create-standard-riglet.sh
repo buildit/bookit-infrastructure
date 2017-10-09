@@ -16,5 +16,6 @@ then
   echo "Y" | make create-compute ENV=staging && \
   echo "Y" | make create-foundation ENV=production && \
   echo "Y" | make create-compute ENV=production && \
-  echo "Y" | make create-build REPO=bookit-api REPO_BRANCH=master CONTAINER_PORT=8080 LISTENER_RULE_PRIORITY=10
+  echo "Y" | make create-build REPO=bookit-api REPO_BRANCH=master CONTAINER_PORT=8080 LISTENER_RULE_PRIORITY=100
+  echo "Y" | make create-build REPO=bookit-client-react REPO_BRANCH=master CONTAINER_PORT=4200 LISTENER_RULE_PRIORITY=200
 fi
