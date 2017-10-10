@@ -47,6 +47,10 @@ Parameters:
     Type: String
     Default: ""
 
+  # CodeBuildProjectTestImage:
+  #   Description: The CodeBuild image to run the e2e tests in
+  #   Type: String
+
 # Conditions:
 #   ShouldCreateSns: !Not [ Equals [ !Ref SlackChannel, "" ] ]
 
@@ -202,6 +206,34 @@ Resources:
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'build' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
+  CodeBuildProjectTest:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: "CODEPIPELINE"
+      Source:
+        Type: "CODEPIPELINE"
+        BuildSpec: buildspec.e2e.yml
+      Environment:
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        # Image: !Ref CodeBuildProjectTestImage
+        Image: "aws/codebuild/docker:1.12.1"
+        # Image: "aws/codebuild/java:openjdk-8"
+        # Image: "aws/codebuild/eb-java-8-amazonlinux-64:2.4.3"
+        # PrivilegedMode: true
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables:
+        #   - Name: AWS_REGION
+        #     Value: !Ref AWS::Region
+          - Name: ENDPOINT_URI
+            Value: !Sub "https://${Prefix}integration-${ApplicationName}.${PublicDomainName}"
+          - Name: REPOSITORY_URI
+            Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
+          - Name: BRANCH
+            Value: !Ref GitHubBranch
+      Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'e2e', 'test' ] ]
+      ServiceRole: !Ref CodeBuildServiceRole
+
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -316,6 +348,17 @@ Resources:
               OutputArtifacts:
                 - Name: IntegrationEnvironment
               RunOrder: 1
+            - Name: E2E-Tests
+              ActionTypeId:
+                Category: Test
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProjectTest
+              InputArtifacts:
+                - Name: App
+              RunOrder: 2
         - Name: Staging
           Actions:
             - Name: Deploy-to-Staging
