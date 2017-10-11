@@ -93,6 +93,7 @@ Resources:
                   - iam:*
                   - route53:*
                   - elasticloadbalancing:*
+                  - logs:*
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole

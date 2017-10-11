@@ -215,6 +215,11 @@ Resources:
           ContainerPort: !Ref ContainerPort
           TargetGroupArn: !Ref TargetGroup
 
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref AWS::StackName
+      RetentionInDays: 60
 
   TaskDefinitionServiceRole:
     Type: AWS::IAM::Role
@@ -254,6 +259,12 @@ Resources:
           Memory: 256
           PortMappings:
             - ContainerPort: !Ref ContainerPort
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref AWS::StackName
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: !Ref ApplicationName
           Environment:
             - Name: Tag
               Value: !Ref Tag
