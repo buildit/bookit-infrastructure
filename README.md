@@ -89,6 +89,10 @@ To delete everything, in order:
 | bookit-api  | 8080  | 100  |
 | bookit-client-react  | 4200 | 200  |
 
+## Logs
+
+We are using CloudWatch for centralized logging.  You can find the logs for each environment and application at [here](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logs:prefix=buildit)
+
 ## Architectural Decisions
 
 We are documenting our decisions [here](../master/docs/architecture/decisions)
