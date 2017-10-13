@@ -21,7 +21,6 @@ OWNER = <The owner of the stack, either personal or corporate>
 PROFILE = <AWS Profile Name>
 PROJECT = <Project Name>
 REGION = <AWS Region>
-REPO_TOKEN = <Github OAuth or Personal Access Token>
 ```
 
 Or also done interactively through `make .make`.
@@ -34,8 +33,8 @@ KEY_NAME = buildit-bookit-ssh-keypair
 OWNER = buildit
 PROFILE = default
 PROJECT = bookit
-REPO_TOKEN = <ask a team member>
 REGION = us-east-1
+PREFIX =
 ```
 
 Confirm everything is valid with `make check-env`
@@ -50,20 +49,19 @@ Confirm everything is valid with `make check-env`
 The full build pipeline requires at least integration, staging, and production environments, so the typical
 installation is:
 
-* Run `make create-foundation ENV=integration`
-* Run `make create-compute ENV=integration`
-* Run `make create-foundation ENV=staging`
-* Run `make create-compute ENV=staging`
-* Run `make create-foundation ENV=production`
+* Run `make create-deps`
+* Run `make create-environment ENV=integration`
+* Run `make create-environment ENV=staging`
+* Run `make create-environment ENV=production`
 * Run `make create-compute ENV=production`
-* Check the outputs of the above with `make outputs-foundation ENV=<environment>`
-* Check the status of the above with `make status-foundation ENV=<environment>`
+* Check the outputs of the above with `make outputs-environment ENV=<environment>`
+* Check the status of the above with `make status-environment ENV=<environment>`
 * Run `make create-build REPO=<repo_name> REPO_BRANCH=<branch> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
   * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
   * REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
-  * (optional) PREFIX is what goes in front of the URI of the application.  Defaults to OWNER but for the "real" riglet should be set to blank (e.g. `PREFIX=`)
+
 
 To delete everything, in order:
 
@@ -72,7 +70,8 @@ To delete everything, in order:
 * Run `make delete-build REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
 * Run `make delete-compute ENV=<environment>` to delete the Compute stack.
 * Run `make delete-foundation ENV=<environment>` to delete the Foundation stack.
-* Run `make delete-deps ENV=<environment>` to delete the required S3 buckets.
+* Run `make delete-foundation-deps ENV=<environment>` to delete the required S3 buckets.
+* Run `make delete-deps` to delete the required SSM parameter.
 
 ## Environment specifics
 

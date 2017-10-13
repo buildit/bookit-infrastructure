@@ -10,6 +10,7 @@ read -p "Are you sure you want to proceed?  " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
+  make deps && \
   echo "Y" | make create-foundation ENV=integration && \
   echo "Y" | make create-compute ENV=integration && \
   echo "Y" | make create-foundation ENV=staging && \

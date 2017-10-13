@@ -21,9 +21,11 @@ Parameters:
 
   GitHubBranch:
     Type: String
+    Default: "master"
 
   GitHubToken:
     Type: String
+    NoEcho: true
 
   GitHubOwner:
     Type: String
@@ -135,6 +137,11 @@ Resources:
                   - ecr:PutImage
                   - ecr:InitiateLayerUpload
                   - ecr:UploadLayerPart
+              # TODO:  this needs to be tightened-up.
+              - Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+                Effect: Allow
+                Action:
+                  - ssm:GetParameters
                   - ecr:CompleteLayerUpload
 
   CodePipelineServiceRole:
@@ -183,6 +190,15 @@ Resources:
                   - iam:PassRole
                   - sns:Publish
 
+  ReportsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      AccessControl: PublicRead
+      BucketName: !Join [ '.', [ 'rig', !Ref AppStackName, 'build', !Ref GitHubRepo, !Ref GitHubBranch, 'reports' ] ]
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -204,6 +220,11 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
+          - Name: SSM_BUILD_NAMESPACE
+            Value:
+              Fn::ImportValue: !Sub "${AppStackName}-deps--Build--Namespace"
+          - Name: REPORTS_BUCKET
+            Value: !Ref ReportsBucket
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'build' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -232,6 +253,11 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
+          - Name: SSM_BUILD_NAMESPACE
+            Value:
+              Fn::ImportValue: !Sub "${AppStackName}-deps--Build--Namespace"
+          - Name: REPORTS_BUCKET
+            Value: !Ref ReportsBucket
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'e2e', 'test' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -272,32 +298,32 @@ Resources:
                 S3Bucket: !Sub "${InfraDevBucketBase}.integration"
                 S3ObjectKey: "templates/templates.zip"
               RunOrder: 1
-            - Name: AppStagingTemplate
-              ActionTypeId:
-                Category: Source
-                Owner: AWS
-                Version: 1
-                Provider: S3
-              OutputArtifacts:
-                - Name: StagingTemplate
-              RunOrder: 1
-              Configuration:
-                S3Bucket: !Sub "${InfraDevBucketBase}.staging"
-                S3ObjectKey: "templates/templates.zip"
-              RunOrder: 1
-            - Name: AppProductionTemplate
-              ActionTypeId:
-                Category: Source
-                Owner: AWS
-                Version: 1
-                Provider: S3
-              OutputArtifacts:
-                - Name: ProductionTemplate
-              RunOrder: 1
-              Configuration:
-                S3Bucket: !Sub "${InfraDevBucketBase}.production"
-                S3ObjectKey: "templates/templates.zip"
-              RunOrder: 1
+            # - Name: AppStagingTemplate
+            #   ActionTypeId:
+            #     Category: Source
+            #     Owner: AWS
+            #     Version: 1
+            #     Provider: S3
+            #   OutputArtifacts:
+            #     - Name: StagingTemplate
+            #   RunOrder: 1
+            #   Configuration:
+            #     S3Bucket: !Sub "${InfraDevBucketBase}.staging"
+            #     S3ObjectKey: "templates/templates.zip"
+            #   RunOrder: 1
+            # - Name: AppProductionTemplate
+            #   ActionTypeId:
+            #     Category: Source
+            #     Owner: AWS
+            #     Version: 1
+            #     Provider: S3
+            #   OutputArtifacts:
+            #     - Name: ProductionTemplate
+            #   RunOrder: 1
+            #   Configuration:
+            #     S3Bucket: !Sub "${InfraDevBucketBase}.production"
+            #     S3ObjectKey: "templates/templates.zip"
+            #   RunOrder: 1
         - Name: Build
           Actions:
             - Name: Build
@@ -360,113 +386,113 @@ Resources:
               InputArtifacts:
                 - Name: App
               RunOrder: 2
-        - Name: Staging
-          Actions:
-            - Name: Deploy-to-Staging
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: 1
-                Provider: CloudFormation
-              Configuration:
-                ActionMode: CREATE_UPDATE
-                StackName: !Sub "${AppStackName}-staging-app-${GitHubRepo}-${GitHubBranch}"
-                Capabilities: CAPABILITY_NAMED_IAM
-                OutputFileName: CloudFormationOutput.json
-                TemplatePath: StagingTemplate::app.yaml
-                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                ParameterOverrides: !Sub |
-                  {
-                    "Environment": "staging",
-                    "FoundationStackName": "${AppStackName}-staging-foundation",
-                    "ComputeStackName": "${AppStackName}-staging-compute-ecs",
-                    "InfraDevBucket": "${InfraDevBucketBase}.staging",
-                    "PublicDomainName": "${PublicDomainName}",
-                    "Repository": "${Repository}",
-                    "ApplicationName": "${ApplicationName}",
-                    "Prefix": "${Prefix}",
-                    "ContainerPort": "${ContainerPort}",
-                    "TaskDesiredCount":"1",
-                    "ListenerRulePriority": "${ListenerRulePriority}",
-                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
-                  }
-              InputArtifacts:
-                - Name: StagingTemplate
-                - Name: BuildOutput
-              OutputArtifacts:
-                - Name: StagingEnvironment
-              RunOrder: 1
-        - Name: Production
-          Actions:
-            - Name: CreateChangeSet
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: '1'
-              InputArtifacts:
-                - Name: ProductionTemplate
-                - Name: BuildOutput
-              Configuration:
-                ActionMode: CHANGE_SET_REPLACE
-                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                StackName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
-                Capabilities: CAPABILITY_NAMED_IAM
-                ChangeSetName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
-                TemplatePath: ProductionTemplate::app.yaml
-                ParameterOverrides: !Sub |
-                  {
-                    "Environment": "production",
-                    "FoundationStackName": "${AppStackName}-production-foundation",
-                    "ComputeStackName": "${AppStackName}-production-compute-ecs",
-                    "InfraDevBucket": "${InfraDevBucketBase}.production",
-                    "PublicDomainName": "${PublicDomainName}",
-                    "Repository": "${Repository}",
-                    "ApplicationName": "${ApplicationName}",
-                    "Prefix": "${Prefix}",
-                    "ContainerPort": "${ContainerPort}",
-                    "TaskDesiredCount":"1",
-                    "ListenerRulePriority": "${ListenerRulePriority}",
-                    "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
-                  }
-              RunOrder: 1
-            - Name: ApproveChangeSet
-              ActionTypeId:
-                Category: Approval
-                Owner: AWS
-                Provider: Manual
-                Version: '1'
+        # - Name: Staging
+        #   Actions:
+        #     - Name: Deploy-to-Staging
+        #       ActionTypeId:
+        #         Category: Deploy
+        #         Owner: AWS
+        #         Version: 1
+        #         Provider: CloudFormation
         #       Configuration:
-        #         NotificationArn: !Ref CodePipelineSNSTopic
-        #         CustomData: !Sub |
+        #         ActionMode: CREATE_UPDATE
+        #         StackName: !Sub "${AppStackName}-staging-app-${GitHubRepo}-${GitHubBranch}"
+        #         Capabilities: CAPABILITY_NAMED_IAM
+        #         OutputFileName: CloudFormationOutput.json
+        #         TemplatePath: StagingTemplate::app.yaml
+        #         RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+        #         ParameterOverrides: !Sub |
         #           {
-        #             "icon_emjoi": ":tada:",
-        #             "username": "AWS CodePipeline Overlord",
-        #             "channel": "${SlackChannel}",
-        #             "fallback": "",
-        #             "color":
-        # "Build Failed - Staging - Branch: ${env.BRANCH_NAME}",
-        # "(<${env.BUILD_URL}|Failed Job>) Commit '<${gitUrl}/commits/${shortCommitHash}|${shortCommitHash}>' failed.\n\n${commitMessage}",
-        # "danger",
-        #             ""'A new change set was created for the ${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch} stack. Do you want to implement the changes?'
+        #             "Environment": "staging",
+        #             "FoundationStackName": "${AppStackName}-staging-foundation",
+        #             "ComputeStackName": "${AppStackName}-staging-compute-ecs",
+        #             "InfraDevBucket": "${InfraDevBucketBase}.staging",
+        #             "PublicDomainName": "${PublicDomainName}",
+        #             "Repository": "${Repository}",
+        #             "ApplicationName": "${ApplicationName}",
+        #             "Prefix": "${Prefix}",
+        #             "ContainerPort": "${ContainerPort}",
+        #             "TaskDesiredCount":"1",
+        #             "ListenerRulePriority": "${ListenerRulePriority}",
+        #             "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
         #           }
-              RunOrder: 2
-            - Name: ExecuteChangeSet
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: '1'
-              Configuration:
-                ActionMode: CHANGE_SET_EXECUTE
-                ChangeSetName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
-                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
-                StackName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
-                Capabilities: CAPABILITY_NAMED_IAM
-                OutputFileName: CloudFormationOutput.json
-              OutputArtifacts:
-                - Name: ProductionEnvironment
-              RunOrder: 3
+        #       InputArtifacts:
+        #         - Name: StagingTemplate
+        #         - Name: BuildOutput
+        #       OutputArtifacts:
+        #         - Name: StagingEnvironment
+        #       RunOrder: 1
+        # - Name: Production
+        #   Actions:
+        #     - Name: CreateChangeSet
+        #       ActionTypeId:
+        #         Category: Deploy
+        #         Owner: AWS
+        #         Provider: CloudFormation
+        #         Version: '1'
+        #       InputArtifacts:
+        #         - Name: ProductionTemplate
+        #         - Name: BuildOutput
+        #       Configuration:
+        #         ActionMode: CHANGE_SET_REPLACE
+        #         RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+        #         StackName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
+        #         Capabilities: CAPABILITY_NAMED_IAM
+        #         ChangeSetName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
+        #         TemplatePath: ProductionTemplate::app.yaml
+        #         ParameterOverrides: !Sub |
+        #           {
+        #             "Environment": "production",
+        #             "FoundationStackName": "${AppStackName}-production-foundation",
+        #             "ComputeStackName": "${AppStackName}-production-compute-ecs",
+        #             "InfraDevBucket": "${InfraDevBucketBase}.production",
+        #             "PublicDomainName": "${PublicDomainName}",
+        #             "Repository": "${Repository}",
+        #             "ApplicationName": "${ApplicationName}",
+        #             "Prefix": "${Prefix}",
+        #             "ContainerPort": "${ContainerPort}",
+        #             "TaskDesiredCount":"1",
+        #             "ListenerRulePriority": "${ListenerRulePriority}",
+        #             "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
+        #           }
+        #       RunOrder: 1
+        #     - Name: ApproveChangeSet
+        #       ActionTypeId:
+        #         Category: Approval
+        #         Owner: AWS
+        #         Provider: Manual
+        #         Version: '1'
+        # #       Configuration:
+        # #         NotificationArn: !Ref CodePipelineSNSTopic
+        # #         CustomData: !Sub |
+        # #           {
+        # #             "icon_emjoi": ":tada:",
+        # #             "username": "AWS CodePipeline Overlord",
+        # #             "channel": "${SlackChannel}",
+        # #             "fallback": "",
+        # #             "color":
+        # # "Build Failed - Staging - Branch: ${env.BRANCH_NAME}",
+        # # "(<${env.BUILD_URL}|Failed Job>) Commit '<${gitUrl}/commits/${shortCommitHash}|${shortCommitHash}>' failed.\n\n${commitMessage}",
+        # # "danger",
+        # #             ""'A new change set was created for the ${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch} stack. Do you want to implement the changes?'
+        # #           }
+        #       RunOrder: 2
+        #     - Name: ExecuteChangeSet
+        #       ActionTypeId:
+        #         Category: Deploy
+        #         Owner: AWS
+        #         Provider: CloudFormation
+        #         Version: '1'
+        #       Configuration:
+        #         ActionMode: CHANGE_SET_EXECUTE
+        #         ChangeSetName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
+        #         RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+        #         StackName: !Sub "${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch}"
+        #         Capabilities: CAPABILITY_NAMED_IAM
+        #         OutputFileName: CloudFormationOutput.json
+        #       OutputArtifacts:
+        #         - Name: ProductionEnvironment
+        #       RunOrder: 3
 
 Outputs:
   PipelineUrl:
@@ -477,3 +503,7 @@ Outputs:
         - !Ref 'AWS::Region'
         - '#/view/'
         - !Ref Pipeline
+
+  SiteUrl:
+    Description: Reports URL
+    Value: !GetAtt [ReportsBucket, WebsiteURL]

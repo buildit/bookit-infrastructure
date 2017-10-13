@@ -4,4 +4,3 @@ OWNER = jdoe
 PROFILE = default
 PROJECT = mycoolproject
 REGION = us-east-1
-REPO_TOKEN = 123abced876

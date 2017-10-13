@@ -7,6 +7,7 @@ export PROFILE ?= default
 export PROJECT ?= projectname
 export REGION ?= us-east-1
 export PREFIX ?= ${OWNER}
+export REPO_BRANCH ?= master
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
@@ -16,7 +17,7 @@ export AWS_REGION=${REGION}
 # Used for storage of Foundation configs, InfraDev storage and Build artifacts
 # These are created outside Terraform since it'll store sensitive contents!
 # When completely empty, can be destroyed with `make destroy-deps`
-deps:
+create-foundation-deps:
 	@echo "Create Build Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build --region "${REGION}" # Build artifacts, etc
@@ -42,18 +43,53 @@ deps:
 	# 	aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV} --region "${REGION}" # Build artifacts, etc
 	# @aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
-# Destroy dependency S3 buckets, only destroy if empty
-delete-deps:
+delete-foundation-deps:
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
 	# @aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
 	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
 
+create-deps:
+	@echo "Create SSM build parameters: /${OWNER}/${PROJECT}/build"
+	@read -p 'GitHub OAuth Token: ' REPO_TOKEN; \
+		aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-deps" \
+                --region ${REGION} \
+			--template-body "file://cloudformation/deps/deps.yaml" \
+			--disable-rollback \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--parameters \
+				"ParameterKey=ParameterStoreNamespace,ParameterValue=/${OWNER}/${PROJECT}" \
+				"ParameterKey=RepoToken,ParameterValue=${REPO_TOKEN}" \
+			--tags \
+				"Key=Owner,Value=${OWNER}" \
+				"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-deps" --region ${REGION}
+
+update-deps:
+	@echo "Update SSM build parameters: /${OWNER}/${PROJECT}/build"
+	@read -p 'GitHub OAuth Token: ' REPO_TOKEN; \
+		aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-deps" \
+                --region ${REGION} \
+			--template-body "file://cloudformation/deps/deps.yaml" \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--parameters \
+				"ParameterKey=ParameterStoreNamespace,ParameterValue=/aochsner/bookit" \
+				"ParameterKey=RepoToken,ParameterValue=${REPO_TOKEN}" \
+			--tags \
+				"Key=Owner,Value=${OWNER}" \
+				"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-deps" --region ${REGION}
+
+# Destroy dependency S3 buckets, only destroy if empty
+delete-deps:
+	@aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-deps"
+	@aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-deps" --region ${REGION}
+
 ## Creates Foundation and Build
 
 ## Creates a new CF stack
-create-foundation: deps upload-templates
+create-foundation: create-foundation-deps upload-templates
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/foundation/main.yaml" \
@@ -104,7 +140,7 @@ create-build: upload-build
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
-			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
+			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
@@ -115,7 +151,7 @@ create-build: upload-build
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
 ## Create new CF app stack
-create-app: deps upload-app
+create-app: create-foundation-deps upload-app
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -186,9 +222,9 @@ update-build: upload-build
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
-			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
+			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
-			"ParameterKey=Prefix,ParameterValue=${OWNER}" \
+			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
@@ -197,7 +233,7 @@ update-build: upload-build
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
 ## Update App CF stack
-update-app: deps upload-app
+update-app: upload-app
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/app/app.yaml" \
@@ -368,9 +404,6 @@ ifndef PROJECT
 endif
 ifndef REGION
 	$(error REGION is undefined, should be in file .make)
-endif
-ifndef REPO_TOKEN
-	$(error REPO_TOKEN is undefined, should be in file .make)
 endif
 	@echo "All required ENV vars set"
 
