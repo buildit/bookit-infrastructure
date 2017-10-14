@@ -53,12 +53,10 @@ installation is:
 * Run `make create-environment ENV=integration`
 * Run `make create-environment ENV=staging`
 * Run `make create-environment ENV=production`
-* Run `make create-compute ENV=production`
 * Check the outputs of the above with `make outputs-environment ENV=<environment>`
 * Check the status of the above with `make status-environment ENV=<environment>`
-* Run `make create-build REPO=<repo_name> REPO_BRANCH=<branch> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
+* Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
   * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
-  * REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
 
@@ -67,9 +65,8 @@ To delete everything, in order:
 
 * Run `make delete-app ENV=<environment> REPO=<repo_name> REPO_BRANCH=<branch>` to delete the App stacks.
   * if you deleted the pipeline first, you'll find you can't delete the app stacks because the role that created them is gone.  You'll have to manually delete via aws cli and the `--role-arn` override
-* Run `make delete-build REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
-* Run `make delete-compute ENV=<environment>` to delete the Compute stack.
-* Run `make delete-foundation ENV=<environment>` to delete the Foundation stack.
+* Run `make delete-build REPO=<repo_name>` to delete the Pipline stack.
+* Run `make delete-environment ENV=<environment>` to delete the Compute stack.
 * Run `make delete-foundation-deps ENV=<environment>` to delete the required S3 buckets.
 * Run `make delete-deps` to delete the required SSM parameter.
 
