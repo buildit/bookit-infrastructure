@@ -35,6 +35,7 @@ PROFILE = default
 PROJECT = bookit
 REGION = us-east-1
 PREFIX =
+EMAIL_ADDRESS = u9o1x0a2t4y0g0k1@wiprodigital.slack.com
 ```
 
 Confirm everything is valid with `make check-env`
@@ -51,8 +52,11 @@ installation is:
 
 * Run `make create-deps`
 * Run `make create-environment ENV=integration`
+  * (optional) EMAIL_ADDRESS to send alarms to
 * Run `make create-environment ENV=staging`
+  * (optional) EMAIL_ADDRESS to send alarms to
 * Run `make create-environment ENV=production`
+  * (optional) EMAIL_ADDRESS to send alarms to
 * Check the outputs of the above with `make outputs-environment ENV=<environment>`
 * Check the status of the above with `make status-environment ENV=<environment>`
 * Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
