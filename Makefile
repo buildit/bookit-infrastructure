@@ -7,6 +7,7 @@ export PROFILE ?= default
 export PROJECT ?= projectname
 export REGION ?= us-east-1
 export PREFIX ?= ${OWNER}
+export REPO_BRANCH ?= master
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
@@ -16,11 +17,12 @@ export AWS_REGION=${REGION}
 # Used for storage of Foundation configs, InfraDev storage and Build artifacts
 # These are created outside Terraform since it'll store sensitive contents!
 # When completely empty, can be destroyed with `make destroy-deps`
-deps:
+create-foundation-deps:
 	@echo "Create Build Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build --region "${REGION}" # Build artifacts, etc
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --versioning-configuration Status=Enabled --region "${REGION}"
+	@aws s3 website s3://rig.${OWNER}.${PROJECT}.${REGION}.build/ --index-document index.html --region "${REGION}"
 
 	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}"  2>/dev/null || \
@@ -42,18 +44,61 @@ deps:
 	# 	aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV} --region "${REGION}" # Build artifacts, etc
 	# @aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
+delete-foundation-deps:
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
+	# @aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.build && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
+
+create-deps:
+	@echo "Create SSM build parameters: /${OWNER}/${PROJECT}/build"
+	@read -p 'GitHub OAuth Token: ' REPO_TOKEN; \
+		aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-deps" \
+                --region ${REGION} \
+			--template-body "file://cloudformation/deps/deps.yaml" \
+			--disable-rollback \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--parameters \
+				"ParameterKey=ParameterStoreNamespace,ParameterValue=/${OWNER}/${PROJECT}" \
+				"ParameterKey=RepoToken,ParameterValue=${REPO_TOKEN}" \
+			--tags \
+				"Key=Owner,Value=${OWNER}" \
+				"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-deps" --region ${REGION}
+
+update-deps:
+	@echo "Update SSM build parameters: /${OWNER}/${PROJECT}/build"
+	@read -p 'GitHub OAuth Token: ' REPO_TOKEN; \
+		aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-deps" \
+                --region ${REGION} \
+			--template-body "file://cloudformation/deps/deps.yaml" \
+			--capabilities CAPABILITY_NAMED_IAM \
+			--parameters \
+				"ParameterKey=ParameterStoreNamespace,ParameterValue=/${OWNER}/${PROJECT}" \
+				"ParameterKey=RepoToken,ParameterValue=${REPO_TOKEN}" \
+			--tags \
+				"Key=Owner,Value=${OWNER}" \
+				"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-deps" --region ${REGION}
+
 # Destroy dependency S3 buckets, only destroy if empty
 delete-deps:
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
-	# @aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
+	@aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-deps"
+	@aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-deps" --region ${REGION}
 
 ## Creates Foundation and Build
 
 ## Creates a new CF stack
-create-foundation: deps upload-templates
+create-foundation: create-foundation-deps upload-templates
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/foundation/main.yaml" \
@@ -104,7 +149,7 @@ create-build: upload-build
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
-			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
+			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
@@ -115,7 +160,7 @@ create-build: upload-build
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
 ## Create new CF app stack
-create-app: deps upload-app
+create-app: create-foundation-deps upload-app
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -186,9 +231,9 @@ update-build: upload-build
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
-			"ParameterKey=GitHubToken,ParameterValue=${REPO_TOKEN}" \
+			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
-			"ParameterKey=Prefix,ParameterValue=${OWNER}" \
+			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
@@ -197,7 +242,7 @@ update-build: upload-build
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
 ## Update App CF stack
-update-app: deps upload-app
+update-app: upload-app
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/app/app.yaml" \
@@ -300,20 +345,15 @@ delete-environment: delete-compute delete-foundation
 
 ## Deletes the build pipeline CF stack
 delete-build:
-	$(eval export ECR_REPO = $(shell echo "${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo"))
-	$(eval export ECR_COUNT = $(shell aws ecr list-images --repository-name "${ECR_REPO}" | jq -r '.imageIds | length | select (.!=0|0)'))
-	@if [[ "${ECR_COUNT}" != "0" ]]; then \
-		echo "${.RED}Can't delete ECS Repository '${ECR_REPO}', there are still ${ECR_COUNT} Docker images on it!${.CLEAR}"; \
-		echo "${.YELLOW}[Cancelled]${.CLEAR}" && exit 1 ; \
-	fi;
-	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${PROJECT} Pipeline Stack for repo: ${REPO} branch: ${REPO_BRANCH}?"; then \
+	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${PROJECT} Pipeline Stack for repo: ${REPO}?"; then \
+		aws ecr batch-delete-image --region ${REGION} --repository-name ${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo --image-ids '$(shell aws ecr list-images --region ${REGION} --repository-name ${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo --query 'imageIds[*]' --output json)'; \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}; \
 	fi
 
 ## Deletes the app CF stack
 delete-app:
-	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the App Stack for environment: ${ENV} repo: ${REPO} branch: ${REPO_BRANCH}?"; then \
+	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the App Stack for environment: ${ENV} repo: ${REPO}?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" --region ${REGION}; \
 	fi
@@ -368,9 +408,6 @@ ifndef PROJECT
 endif
 ifndef REGION
 	$(error REGION is undefined, should be in file .make)
-endif
-ifndef REPO_TOKEN
-	$(error REPO_TOKEN is undefined, should be in file .make)
 endif
 	@echo "All required ENV vars set"
 

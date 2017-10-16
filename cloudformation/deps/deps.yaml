@@ -1,0 +1,31 @@
+---
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS Foundation Template
+
+
+Parameters:
+  ParameterStoreNamespace:
+    Description: SSM Parameter Store namespace
+    Type: String
+
+  RepoToken:
+    Description: Github Repo Token
+    Type: String
+    NoEcho: true
+
+Resources:
+  GithubRepoToken:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: !Sub "${ParameterStoreNamespace}/build/REPO_TOKEN"
+      Type: "String"
+      Value: !Ref RepoToken
+      Description: "Github Repo Token"
+
+Outputs:
+  ParameterStoreBuildNamespace:
+    Description: Parameter Store Build Namespace
+    Value: !Ref ParameterStoreNamespace
+    Export:
+      Name: !Sub "${AWS::StackName}--Build--Namespace"

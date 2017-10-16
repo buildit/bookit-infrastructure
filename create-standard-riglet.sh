@@ -10,12 +10,13 @@ read -p "Are you sure you want to proceed?  " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
+  make create-deps && \
   echo "Y" | make create-foundation ENV=integration && \
   echo "Y" | make create-compute ENV=integration && \
   echo "Y" | make create-foundation ENV=staging && \
   echo "Y" | make create-compute ENV=staging && \
   echo "Y" | make create-foundation ENV=production && \
   echo "Y" | make create-compute ENV=production && \
-  echo "Y" | make create-build REPO=bookit-api REPO_BRANCH=master CONTAINER_PORT=8080 LISTENER_RULE_PRIORITY=100 && \
-  echo "Y" | make create-build REPO=bookit-client-react REPO_BRANCH=master CONTAINER_PORT=4200 LISTENER_RULE_PRIORITY=200
+  echo "Y" | make create-build REPO=bookit-api CONTAINER_PORT=8080 LISTENER_RULE_PRIORITY=100 && \
+  echo "Y" | make create-build REPO=bookit-client-react CONTAINER_PORT=4200 LISTENER_RULE_PRIORITY=200
 fi

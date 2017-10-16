@@ -21,9 +21,11 @@ Parameters:
 
   GitHubBranch:
     Type: String
+    Default: "master"
 
   GitHubToken:
     Type: String
+    NoEcho: true
 
   GitHubOwner:
     Type: String
@@ -136,6 +138,12 @@ Resources:
                   - ecr:InitiateLayerUpload
                   - ecr:UploadLayerPart
                   - ecr:CompleteLayerUpload
+              # TODO:  this needs to be tightened-up.
+              - Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+                Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ecr:CompleteLayerUpload
 
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
@@ -204,6 +212,11 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
+          - Name: SSM_BUILD_NAMESPACE
+            Value:
+              Fn::ImportValue: !Sub "${AppStackName}-deps--Build--Namespace"
+          - Name: REPORTS_BUCKET
+            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'build' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -232,6 +245,11 @@ Resources:
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
             Value: !Ref GitHubBranch
+          - Name: SSM_BUILD_NAMESPACE
+            Value:
+              Fn::ImportValue: !Sub "${AppStackName}-deps--Build--Namespace"
+          - Name: REPORTS_BUCKET
+            Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'e2e', 'test' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
@@ -477,3 +495,7 @@ Outputs:
         - !Ref 'AWS::Region'
         - '#/view/'
         - !Ref Pipeline
+
+  ReportsUrl:
+    Description: Reports URL
+    Value: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"
