@@ -79,7 +79,7 @@ update-deps:
 			--template-body "file://cloudformation/deps/deps.yaml" \
 			--capabilities CAPABILITY_NAMED_IAM \
 			--parameters \
-				"ParameterKey=ParameterStoreNamespace,ParameterValue=/aochsner/bookit" \
+				"ParameterKey=ParameterStoreNamespace,ParameterValue=/${OWNER}/${PROJECT}" \
 				"ParameterKey=RepoToken,ParameterValue=${REPO_TOKEN}" \
 			--tags \
 				"Key=Owner,Value=${OWNER}" \
