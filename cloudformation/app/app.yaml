@@ -175,6 +175,34 @@ Resources:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
+  ExternalHealthCheck:
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        Type: HTTPS
+        FullyQualifiedDomainName: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+        EnableSNI: true
+        FailureThreshold: 3
+
+  ExternalHealthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmName: !Sub "${AWS::StackName}"
+      AlarmDescription: "Alarm when site not reachable"
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      MetricName: HealthCheckStatus
+      Namespace: AWS/Route53
+      Statistic: Minimum
+      Threshold: 1.0
+      ComparisonOperator: LessThanThreshold
+      Period: 10
+      EvaluationPeriods: 1
+      Dimensions:
+        - Name: HealthCheckId
+          Value: !Ref ExternalHealthCheck
+
   # ECSService:
   #   Type: AWS::CloudFormation::Stack
   #   Properties:

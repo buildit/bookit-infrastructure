@@ -96,6 +96,7 @@ Resources:
                   - route53:*
                   - elasticloadbalancing:*
                   - logs:*
+                  - cloudwatch:*
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
