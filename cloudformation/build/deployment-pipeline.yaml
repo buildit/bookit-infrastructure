@@ -128,6 +128,7 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:GetObjectVersion
+                  - s3:PutObjectAcl
               - Resource: !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}"
                 Effect: Allow
                 Action:
@@ -143,7 +144,6 @@ Resources:
                 Effect: Allow
                 Action:
                   - ssm:GetParameters
-                  - ecr:CompleteLayerUpload
 
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
