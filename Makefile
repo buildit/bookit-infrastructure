@@ -45,15 +45,19 @@ create-foundation-deps:
 	# @aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
 delete-foundation-deps:
-	@scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
-	@scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
-	@scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
 	# @aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
-	@scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.build
-	@aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.build && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
 
 create-deps:
 	@echo "Create SSM build parameters: /${OWNER}/${PROJECT}/build"
