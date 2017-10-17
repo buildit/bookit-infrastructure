@@ -31,6 +31,10 @@ Parameters:
     Description: Comma-delimited list of two CIDR blocks for public subnets
     Type: CommaDelimitedList
 
+  InternalHostedZoneName:
+    Description: The DNS name to use for the internally-resolved zone associated with this VPC.
+    Type: String
+
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -48,7 +52,7 @@ Resources:
     Properties:
       HostedZoneConfig:
         Comment: !Sub "${FoundationStackName} VPC Internal DNS"
-      Name: internal
+      Name: !Ref InternalHostedZoneName
       VPCs:
         - VPCId:
             Ref: VPC
@@ -195,6 +199,13 @@ Outputs:
       Name: !Sub "${FoundationStackName}--InternalDns"
     Value:
       Ref: InternalDns
+
+  InternalHostedZoneName:
+    Description: The DNS Name for the internally-resolved DNS.
+    Export:
+      Name: !Sub "${FoundationStackName}--InternalHostedZoneName"
+    Value:
+      Ref: InternalHostedZoneName
 
   InternetGateway:
     Description: The ID of the newly created Internet Gateway
