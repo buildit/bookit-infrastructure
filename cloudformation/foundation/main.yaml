@@ -32,6 +32,10 @@ Parameters:
     Description: Region
     Type: String
 
+  DomainCertGuid:
+    Description: GUID for the Cert for the Domain
+    Type: String
+
   CreateHostedZone:
     Default: no
     Description: Whether a new Route 53 hosted zone should be created for this stack.
@@ -103,6 +107,7 @@ Resources:
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/load-balancer.yaml
       Parameters:
         FoundationStackName: !Sub ${AWS::StackName}
+        DomainCertGuid: !Ref DomainCertGuid
 
 Outputs:
   FoundationVpcId:
@@ -114,4 +119,3 @@ Outputs:
     Value: !GetAtt LoadBalancer.Outputs.SecurityGroup
     Export:
       Name: !Sub "${AWS::StackName}--ALB--SG"
-

@@ -21,6 +21,7 @@ OWNER = <The owner of the stack, either personal or corporate>
 PROFILE = <AWS Profile Name>
 PROJECT = <Project Name>
 REGION = <AWS Region>
+DOMAIN_CERT = <AWS Certificate Manager GUID>
 ```
 
 Or also done interactively through `make .make`.
@@ -34,6 +35,7 @@ OWNER = buildit
 PROFILE = default
 PROJECT = bookit
 REGION = us-east-1
+DOMAIN_CERT = 0663e927-e990-4157-aef9-7dea87faa6ec
 PREFIX =
 ```
 
