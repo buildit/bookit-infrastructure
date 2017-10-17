@@ -63,6 +63,7 @@ installation is:
   * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
+  * (optional) EMAIL_ADDRESS to send build status notifications to
 
 
 To delete everything, in order:
