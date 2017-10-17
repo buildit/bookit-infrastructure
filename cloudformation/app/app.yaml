@@ -200,7 +200,7 @@ Resources:
       Statistic: Minimum
       Threshold: 1.0
       ComparisonOperator: LessThanThreshold
-      Period: 10
+      Period: 60
       EvaluationPeriods: 1
       Dimensions:
         - Name: HealthCheckId
@@ -233,11 +233,37 @@ Resources:
       Statistic: Minimum
       Threshold: 1.0
       ComparisonOperator: LessThanThreshold
-      Period: 10
+      Period: 60
       EvaluationPeriods: 1
       Dimensions:
         - Name: HealthCheckId
           Value: !Ref PreferredExternalHealthCheck
+
+  LogErrorCountMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CloudWatchLogsGroup
+      FilterPattern: "[date, time, level=ERROR, process, separator, thread_name, logger_name, ...]"
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: Buildit/Application
+          MetricName: !Sub "${Prefix}${ApplicationName}${Environment}ErrorCount"
+
+  LogErrorCountAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmName: !Sub "${AWS::StackName} - Log Error count"
+      AlarmDescription: "Alarm when application logs an error"
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      MetricName: !Sub "${Prefix}${ApplicationName}${Environment}ErrorCount"
+      Namespace: Buildit/Application
+      Statistic: Sum
+      Threshold: 0.0
+      ComparisonOperator: GreaterThanThreshold
+      Period: 60
+      EvaluationPeriods: 1
 
   # ECSService:
   #   Type: AWS::CloudFormation::Stack
