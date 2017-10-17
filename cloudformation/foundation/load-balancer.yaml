@@ -8,6 +8,14 @@ Parameters:
     Description: Foundation stack name
     Type: String
 
+  Region:
+    Description: AWS Region ID
+    Type: String
+
+  DomainCertGuid:
+    Description: GUID for Domain ARN
+    Type: String
+
 Resources:
   SecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
@@ -39,7 +47,7 @@ Resources:
     Properties:
       LoadBalancerArn: !Ref LoadBalancer
       Certificates:
-        - CertificateArn: arn:aws:acm:us-east-1:006393696278:certificate/0663e927-e990-4157-aef9-7dea87faa6ec
+        - CertificateArn: !Sub "arn:aws:acm:${Region}:006393696278:certificate/${DomainCertGuid}"
       Port: 443
       Protocol: HTTPS
       DefaultActions:
