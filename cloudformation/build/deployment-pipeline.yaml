@@ -214,6 +214,7 @@ Resources:
       Protocol: email
       TopicArn: !Ref SnsTopic
 
+  # this is a WIP
   CodePipelineEventRule:
     Type: "AWS::Events::Rule"
     Properties:
