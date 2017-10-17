@@ -8,6 +8,7 @@ export PROJECT ?= projectname
 export REGION ?= us-east-1
 export PREFIX ?= ${OWNER}
 export REPO_BRANCH ?= master
+export DOMAIN_CERT ?= ""
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
@@ -110,6 +111,7 @@ create-foundation: create-foundation-deps upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
+			"ParameterKey=DomainCertGuid,ParameterValue=${DOMAIN_CERT}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -409,6 +411,9 @@ ifndef PROJECT
 endif
 ifndef REGION
 	$(error REGION is undefined, should be in file .make)
+endif
+ifndef DOMAIN_CERT
+	$(error DOMAIN_CERT is undefined, should be in file .make)
 endif
 	@echo "All required ENV vars set"
 
