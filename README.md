@@ -35,7 +35,7 @@ OWNER = buildit
 PROFILE = default
 PROJECT = bookit
 REGION = us-east-1
-DOMAIN_CERT = 5346c0ef-a307-41c3-a027-208f70992318
+DOMAIN_CERT = 0663e927-e990-4157-aef9-7dea87faa6ec
 PREFIX =
 ```
 

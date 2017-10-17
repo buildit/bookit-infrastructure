@@ -107,7 +107,6 @@ Resources:
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/load-balancer.yaml
       Parameters:
         FoundationStackName: !Sub ${AWS::StackName}
-        Region: !Ref Region
         DomainCertGuid: !Ref DomainCertGuid
 
 Outputs:
