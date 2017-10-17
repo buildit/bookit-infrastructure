@@ -89,9 +89,33 @@ To delete everything, in order:
 | bookit-api  | 8080  | 100  |
 | bookit-client-react  | 4200 | 200  |
 
+## Scaling
+
+There are a few scaling knobs that can be twisted.  Minimalistic defaults are established in the templates,
+but the values can (and should) be updated in specific running riglets later.
+
+For example, production should probably be scaled up, at least horizontally, if only for high availability,
+so increasing the number of cluster instances to at least 2 (and arguably 4) is probably a good idea, as well
+as running a number of ECS Tasks for each twig-api and twig (web).  ECS automatically distributes the Tasks
+to the ECS cluster instances.
+
+To make changes in the CloudFormation console, find the appropriate stack, select it, select
+"update", and specify "use current template".  On the parameters page make appropriate changes and
+submit.
+
+### Application Scaling Parameters
+
+| Parameter                    | Scaling Style | Stack                      | Parameter
+| :---                         | :---          | :---                       | :---
+| # of ECS cluster instances   | Horizontal    | compute-ecs                | ClusterSize/ClusterMaxSize
+| Size of ECS Hosts            | Vertical      | compute-ecs                | InstanceType    |
+| Number of Tasks              | Horizontal    | app (once created by build)| TaskDesiredCount
+
 ## Logs
 
 We are using CloudWatch for centralized logging.  You can find the logs for each environment and application at [here](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logs:prefix=buildit)
+
+Alarms are generated when ERROR level logs occur.  They currently get sent to the #book-it-notifications channel
 
 ## Architectural Decisions
 
