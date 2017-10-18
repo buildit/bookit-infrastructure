@@ -175,6 +175,96 @@ Resources:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
+  ExternalHealthCheck:
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        Type: HTTPS
+        FullyQualifiedDomainName: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+        EnableSNI: true
+        FailureThreshold: 3
+      HealthCheckTags:
+      - Key: "Name"
+        Value: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+
+  ExternalHealthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmName: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+      AlarmDescription: "Alarm when site not reachable"
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      MetricName: HealthCheckStatus
+      Namespace: AWS/Route53
+      Statistic: Minimum
+      Threshold: 1.0
+      ComparisonOperator: LessThanThreshold
+      Period: 60
+      EvaluationPeriods: 1
+      Dimensions:
+        - Name: HealthCheckId
+          Value: !Ref ExternalHealthCheck
+
+  PreferredExternalHealthCheck:
+    Condition: ShouldCreatePreferredCname
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        Type: HTTPS
+        FullyQualifiedDomainName: !Sub "${Prefix}${ApplicationName}.${PublicDomainName}."
+        EnableSNI: true
+        FailureThreshold: 3
+      HealthCheckTags:
+      - Key: "Name"
+        Value: !Sub "${Prefix}${ApplicationName}.${PublicDomainName}."
+
+  PreferredExternalHealthAlarm:
+    Condition: ShouldCreatePreferredCname
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmName: !Sub "${Prefix}${ApplicationName}.${PublicDomainName}."
+      AlarmDescription: "Alarm when preferred site not reachable"
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      MetricName: HealthCheckStatus
+      Namespace: AWS/Route53
+      Statistic: Minimum
+      Threshold: 1.0
+      ComparisonOperator: LessThanThreshold
+      Period: 60
+      EvaluationPeriods: 1
+      Dimensions:
+        - Name: HealthCheckId
+          Value: !Ref PreferredExternalHealthCheck
+
+  LogErrorCountMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CloudWatchLogsGroup
+      FilterPattern: "[date, time, level=ERROR, process, separator, thread_name, logger_name, ...]"
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: Buildit/Application
+          MetricName: !Sub "${Prefix}${ApplicationName}${Environment}ErrorCount"
+
+  LogErrorCountAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: true
+      AlarmName: !Sub "${AWS::StackName} - Log Error count"
+      AlarmDescription: "Alarm when application logs an error"
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      MetricName: !Sub "${Prefix}${ApplicationName}${Environment}ErrorCount"
+      Namespace: Buildit/Application
+      Statistic: Sum
+      Threshold: 0.0
+      ComparisonOperator: GreaterThanThreshold
+      Period: 60
+      EvaluationPeriods: 1
+
   # ECSService:
   #   Type: AWS::CloudFormation::Stack
   #   Properties:

@@ -49,12 +49,21 @@ Parameters:
     Type: String
     Default: ""
 
+  EmailAddress:
+    Description: Email address to send build notifications to
+    Type: String
+    Default: ""
+
+
   # CodeBuildProjectTestImage:
   #   Description: The CodeBuild image to run the e2e tests in
   #   Type: String
 
 # Conditions:
 #   ShouldCreateSns: !Not [ Equals [ !Ref SlackChannel, "" ] ]
+
+Conditions:
+  EmailSpecified: !Not [ !Equals [ !Ref EmailAddress, "" ] ]
 
 Resources:
   Repository:
@@ -96,6 +105,7 @@ Resources:
                   - route53:*
                   - elasticloadbalancing:*
                   - logs:*
+                  - cloudwatch:*
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
@@ -190,6 +200,41 @@ Resources:
                   - cloudformation:*
                   - iam:PassRole
                   - sns:Publish
+
+  SnsTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      TopicName: !Sub "${AWS::StackName}"
+
+  EmailSubscription:
+    Type: "AWS::SNS::Subscription"
+    Condition: EmailSpecified
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref SnsTopic
+
+  # this is a WIP
+  CodePipelineEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: !Sub "${AWS::StackName} Build notifications"
+      EventPattern:
+        source:
+          - "aws.codepipeline"
+        detail-type:
+          - "CodePipeline Pipeline Execution State Change"
+          - "CodePipeline Action Execution State Change"
+          - "CodePipeline Stage Execution State Change"
+        detail:
+          state:
+            - "FAILED"
+          pipeline:
+            - Ref: Pipeline
+      State: ENABLED
+      Targets:
+        - Arn: !Ref SnsTopic
+          Id: !Sub "${AWS::StackName}"
 
   CodeBuildProject:
     Type: AWS::CodeBuild::Project

@@ -27,10 +27,10 @@ Parameters:
     Description: Public Domain Name for sites and services created by this stack.
     Type: String
 
-  Region:
-    Default: us-east-1
-    Description: Region
+  EmailAddress:
+    Description: Email address to send notifications to
     Type: String
+    Default: ""
 
   DomainCertGuid:
     Description: GUID for the Cert for the Domain
@@ -43,7 +43,6 @@ Parameters:
     AllowedValues:
       - no
       - yes
-
 
 Conditions:
   ShouldCreateHostedZone: !Equals [ !Ref CreateHostedZone, yes ]
@@ -71,7 +70,7 @@ Resources:
         CidrBlock: !FindInMap [ EnvironmentToCidr, !Ref Environment, CidrBlock ]
         Environment: !Ref Environment
         FoundationStackName: !Sub ${AWS::StackName}
-        Region: !Ref Region
+        Region: !Sub ${AWS::Region}
         SubnetPrivateCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPrivateCidrBlocks ]
         SubnetPublicCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPublicCidrBlocks ]
         InternalHostedZoneName: !Sub "${ProjectName}.internal"
@@ -108,6 +107,14 @@ Resources:
       Parameters:
         FoundationStackName: !Sub ${AWS::StackName}
         DomainCertGuid: !Ref DomainCertGuid
+
+  Sns:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/sns.yaml
+      Parameters:
+        FoundationStackName: !Sub ${AWS::StackName}
+        EmailAddress: !Ref EmailAddress
 
 Outputs:
   FoundationVpcId:

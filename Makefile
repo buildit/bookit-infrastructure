@@ -70,7 +70,7 @@ create-deps:
 			--capabilities CAPABILITY_NAMED_IAM \
 			--parameters \
 				"ParameterKey=ParameterStoreNamespace,ParameterValue=/${OWNER}/${PROJECT}" \
-				"ParameterKey=RepoToken,ParameterValue=${REPO_TOKEN}" \
+				"ParameterKey=RepoToken,ParameterValue=$$REPO_TOKEN" \
 			--tags \
 				"Key=Owner,Value=${OWNER}" \
 				"Key=Project,Value=${PROJECT}"
@@ -85,7 +85,7 @@ update-deps:
 			--capabilities CAPABILITY_NAMED_IAM \
 			--parameters \
 				"ParameterKey=ParameterStoreNamespace,ParameterValue=/${OWNER}/${PROJECT}" \
-				"ParameterKey=RepoToken,ParameterValue=${REPO_TOKEN}" \
+				"ParameterKey=RepoToken,ParameterValue=$$REPO_TOKEN" \
 			--tags \
 				"Key=Owner,Value=${OWNER}" \
 				"Key=Project,Value=${PROJECT}"
@@ -110,7 +110,7 @@ create-foundation: create-foundation-deps upload-templates
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 			"ParameterKey=DomainCertGuid,ParameterValue=${DOMAIN_CERT}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
@@ -156,6 +156,7 @@ create-build: upload-build
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
+			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -194,7 +195,7 @@ update-foundation: upload-templates
 			"ParameterKey=FoundationBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" \
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
-			"ParameterKey=Region,ParameterValue=${REGION}" \
+			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -237,6 +238,7 @@ update-build: upload-build
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
+			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
