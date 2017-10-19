@@ -1,0 +1,182 @@
+---
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Database subnets and instance.
+
+Parameters:
+  FoundationStackName:
+    Description: Foundation Stack Name
+    Type: String
+
+  ComputeStackName:
+    Description: Compute Stack Name
+    Type: String
+
+  InstanceType:
+    Type: String
+    Default: db.t2.small
+    AllowedValues:
+      - db.t2.small
+      - db.t2.medium
+      - db.r3.large
+      - db.r3.xlarge
+      - db.r3.2xlarge
+      - db.r3.4xlarge
+      - db.r3.8xlarge
+
+  Environment:
+    Description: Stack environment
+    Type: String
+    AllowedValues:
+      - integration
+      - staging
+      - production
+
+  MasterUsername:
+    Description: DB admin username
+    Type: String
+    Default: "admin"
+
+  MasterPassword:
+    Description: DB admin password
+    Type: String
+    AllowedPattern: "[a-zA-Z0-9\\!\\#\\$\\%\\^\\&\\*\\(\\)\\[\\]\\{\\}\\-\\_\\+\\=\\?\\>\\<\\,\\.\\:\\;\\'\\~|]+"
+    ConstraintDescription: "must not contain /, @, or \""
+    MaxLength: '41'
+    MinLength: '8'
+    NoEcho: 'true'
+
+  DatabaseName:
+    Description: Name of the database created
+    Type: String
+
+Mappings:
+  EnvironmentMap:
+    integration:
+      DbSubnetCidrBlocks: ["10.1.100.0/24","10.1.110.0/24"]
+      BackupRetention: 1
+      Replication: false
+    staging:
+      DbSubnetCidrBlocks: ["10.2.100.0/24","10.2.110.0/24"]
+      BackupRetention: 5
+      Replication: false
+    production:
+      DbSubnetCidrBlocks: ["10.3.100.0/24","10.3.110.0/24"]
+      BackupRetention: 14
+      Replication: true
+
+Conditions:
+  ShouldCreateReplica: !Equals [ !FindInMap [ EnvironmentMap, !Ref Environment, Replication ], true ]
+
+Resources:
+  DbSubnetPrivateA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      CidrBlock: !Select [ 0, !FindInMap [ EnvironmentMap, !Ref Environment, DbSubnetCidrBlocks ] ]
+      # this really sucks... but as of right now 10/18/17 we can't create RDS-Aurora instances in us-east-1a so hacking...
+      AvailabilityZone: !Select [ 2, !GetAZs ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--DbSubnetPrivateA"
+
+  DbSubnetPrivateB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      CidrBlock: !Select [ 1, !FindInMap [ EnvironmentMap, !Ref Environment, DbSubnetCidrBlocks ] ]
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--DbSubnetPrivateB"
+
+  DbSubnetPrivateARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: DbSubnetPrivateA
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateA"
+
+  DbSubnetPrivateBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: DbSubnetPrivateB
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateB"
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+        DBSubnetGroupDescription: DB subnet group.
+        SubnetIds:
+          - !Ref DbSubnetPrivateA
+          - !Ref DbSubnetPrivateB
+
+  DatabaseSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub ${AWS::StackName}
+      SecurityGroupIngress:
+        - SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
+          IpProtocol: TCP
+          FromPort: 3306
+          ToPort: 3306
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+
+  DatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterPassword
+      BackupRetentionPeriod: !FindInMap [ EnvironmentMap, !Ref Environment, BackupRetention ]
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroup
+      DatabaseName: !Ref DatabaseName
+
+  DatabasePrimaryInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: aurora
+      DBClusterIdentifier: !Ref DatabaseCluster
+      DBInstanceClass: !Ref InstanceType
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      CopyTagsToSnapshot: true
+
+  DatabaseReplicaInstance:
+    Type: AWS::RDS::DBInstance
+    Condition: ShouldCreateReplica
+    Properties:
+      Engine: aurora
+      DBClusterIdentifier: !Ref DatabaseCluster
+      DBInstanceClass: !Ref InstanceType
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      CopyTagsToSnapshot: true
+
+  DatabaseInternalDns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
+      Comment: DNS for Aurora.
+      RecordSets:
+      - Name: !Join
+          - '.'
+          - - "aurora"
+            - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
+        Type: CNAME
+        TTL: '300'
+        ResourceRecords:
+        - !GetAtt DatabaseCluster.Endpoint.Address
+
+# TODOS
+# take a snapshot before tearing down
+# stop auto snapshots from being deleted when DB replaced/deleted? http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html
+# IAM auth?

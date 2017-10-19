@@ -168,5 +168,9 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}--Cluster"
     Value: !Ref Cluster
+  AppSecurityGroup:
+    Export:
+      Name: !Sub "${AWS::StackName}--AppSecurityGroup"
+    Value: !Ref SecurityGroup
   AutoScalingGroup:
     Value: !Ref AutoScalingGroup

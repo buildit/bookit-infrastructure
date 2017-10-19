@@ -8,7 +8,7 @@ This setup will create a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy p
 
 For using this repo you'll need:
 
-* AWS CLI, and credentials working: `brew install awscli && aws configure`
+* AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`
 * Setup `.make` for local settings
 
 This can either be done by copying settings from the template `.make.example`
@@ -67,7 +67,6 @@ installation is:
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
   * (optional) EMAIL_ADDRESS to send build status notifications to
 
-
 To delete everything, in order:
 
 * Run `make delete-app ENV=<environment> REPO=<repo_name> REPO_BRANCH=<branch>` to delete the App stacks.
@@ -79,11 +78,21 @@ To delete everything, in order:
 
 ## Environment specifics
 
-| Environment | CidrBlock |
-| ------------- | ------------- |
-| integration  | 10.1.0.0/16  |
-| staging  | 10.2.0.0/16  |
-| production  | 10.3.0.0/16  |
+| Environment | CidrBlock | Public Subnets (Multi AZ) | Private Subnets (Multi AZ) |
+| ------------- | ------------- | ------------- | ------------- |
+| integration  | 10.1.0.0/16 | 10.1.1.0/24,10.1.2.0/24 | 10.1.11.0/24,10.1.12.0/24 |
+| staging  | 10.2.0.0/16 | 10.2.1.0/24,10.2.2.0/24 | 10.2.11.0/24,10.2.12.0/24 |
+| production  | 10.3.0.0/16 | 10.3.1.0/24,10.3.2.0/24 | 10.3.11.0/24,10.3.12.0/24 |
+
+## Database specifics
+
+We're currently using AWS RDS Aurora MySQL 5.6.x
+
+| Environment | DB URI (internal to VPC) | DB Subnets (Private, MultiAZ) |
+| ------------- | ------------- | ------------- | ------------- |
+| integration  | mysql://aurora.bookit.internal/bookit | 10.1.100.0/24,10.1.110.0/24 |
+| staging  | mysql://aurora.bookit.internal/bookit | 10.2.100.0/24,10.2.110.0/24 |
+| production  | mysql://aurora.bookit.internal/bookit | 10.3.100.0/24,10.3.110.0/24 |
 
 ## Application specifics
 
@@ -110,9 +119,18 @@ submit.
 
 | Parameter                    | Scaling Style | Stack                      | Parameter
 | :---                         | :---          | :---                       | :---
-| # of ECS cluster instances   | Horizontal    | compute-ecs                | ClusterSize/ClusterMaxSize
+| # of ECS cluster instances   | Horizontal    | compute-ecs                | ClusterSize/ClusterMaxSize |
 | Size of ECS Hosts            | Vertical      | compute-ecs                | InstanceType    |
-| Number of Tasks              | Horizontal    | app (once created by build)| TaskDesiredCount
+| Number of Tasks              | Horizontal    | app (once created by build)| TaskDesiredCount |
+
+### Database Scaling Parameters
+
+And here are the available *database* scaling parameters.
+
+| Parameter             | Scaling Style | Stack         | Parameter
+| :---                  | :---          | :---          | :---
+| Size of RDS Instances    | Vertical      | db-aurora      | InstanceType  |
+| # of RDS Instances    | Vertical      | db-aurora      | _currently via Replication property in Mappings inside db-aurora/main.yaml_  |
 
 ## Logs
 

@@ -54,6 +54,10 @@ Parameters:
     Type: String
     Default: ""
 
+  SsmNamespacePrefix:
+    Description: The prefix SSM namespace where the stack can find needed parameters
+    Type: String
+
 
   # CodeBuildProjectTestImage:
   #   Description: The CodeBuild image to run the e2e tests in
@@ -259,7 +263,7 @@ Resources:
             Value: !Ref GitHubBranch
           - Name: SSM_BUILD_NAMESPACE
             Value:
-              Fn::ImportValue: !Sub "${AppStackName}-deps--Build--Namespace"
+              Fn::ImportValue: !Sub "${SsmNamespacePrefix}/build"
           - Name: REPORTS_BUCKET
             Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'build' ] ]
@@ -292,7 +296,10 @@ Resources:
             Value: !Ref GitHubBranch
           - Name: SSM_BUILD_NAMESPACE
             Value:
-              Fn::ImportValue: !Sub "${AppStackName}-deps--Build--Namespace"
+              Fn::ImportValue: !Sub "${SsmNamespacePrefix}/build"
+          - Name: SSM_ENV_NAMESPACE
+            Value:
+              Fn::ImportValue: !Sub "${SsmNamespacePrefix}/env/integration"
           - Name: REPORTS_BUCKET
             Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'e2e', 'test' ] ]
