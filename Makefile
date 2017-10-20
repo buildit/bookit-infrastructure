@@ -15,59 +15,58 @@ export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
 
 
-## Create dependency S3 buckets
-# Used for storage of Foundation configs, InfraDev storage and Build artifacts
-# These are created outside Terraform since it'll store sensitive contents!
-# When completely empty, can be destroyed with `make destroy-deps`
 create-foundation-deps:
+	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}"  2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}  --region "${REGION}" # Foundation configs
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+
+delete-foundation-deps:
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
+
+create-build-deps:
 	@echo "Create Build Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build --region "${REGION}" # Build artifacts, etc
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --versioning-configuration Status=Enabled --region "${REGION}"
 	@aws s3 website s3://rig.${OWNER}.${PROJECT}.${REGION}.build/ --index-document index.html --region "${REGION}"
 
-	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}"  2>/dev/null || \
-		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}  --region "${REGION}" # Foundation configs
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
-
-	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}"  2>/dev/null || \
-		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Compute configs
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
-
-	@echo "Create DB S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}"
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}"  2>/dev/null || \
-		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}  --region "${REGION}" # DB configs
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
-
 	@echo "Create App S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} --region "${REGION}" # Storage for InfraDev
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
-	# @echo "Create Build Support S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}"
-	# @aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}" --region "${REGION}" 2>/dev/null || \
-	# 	aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV} --region "${REGION}" # Build artifacts, etc
-	# @aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
-
-delete-foundation-deps:
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV} && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV} && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
+delete-build-deps:
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null && \
 		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} && \
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV} && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}
-	# @aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null && \
 		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.build && \
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
+
+create-compute-deps:
+	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}"  2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Compute configs
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+
+delete-compute-deps:
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
+
+create-db-deps:
+	@echo "Create DB S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}"  2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}  --region "${REGION}" # DB configs
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+
+delete-db-deps:
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}
 
 create-deps:
 	@echo "Update SSM build parameters: /${OWNER}/${PROJECT}/build"
@@ -76,13 +75,18 @@ create-deps:
 	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/integration"
 	@read -p 'Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "String" --value "$$DB_MASTER_PASSWORD" --overwrite
+	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_USER_PASSWORD; \
+		[ -z $$BOOKIT_USER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/BOOKIT_USER_PASSWORD" --description "Bookit Database User Password (integration)" --type "String" --value "$$BOOKIT_USER_PASSWORD" --overwrite
 	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/staging"
 	@read -p 'Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "String" --value "$$DB_MASTER_PASSWORD" --overwrite
+	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_USER_PASSWORD; \
+		[ -z $$BOOKIT_USER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/BOOKIT_USER_PASSWORD" --description "Bookit Database User Password (staging)" --type "String" --value "$$BOOKIT_USER_PASSWORD" --overwrite
 	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/production"
 	@read -p 'Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "String" --value "$$DB_MASTER_PASSWORD" --overwrite
-
+	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_USER_PASSWORD; \
+		[ -z $$BOOKIT_USER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_USER_PASSWORD" --description "Bookit Database User Password (production)" --type "String" --value "$$BOOKIT_USER_PASSWORD" --overwrite
 
 update-deps: create-deps
 
@@ -118,7 +122,7 @@ create-foundation: create-foundation-deps upload-templates
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}
 
 ## Create new CF compute stack
-create-compute: upload-compute
+create-compute: create-compute-deps upload-compute
 	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-compute-ecs stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
@@ -135,7 +139,7 @@ create-compute: upload-compute
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
 
 ## Create new CF db stack
-create-db: upload-db
+create-db: create-db-deps upload-db
 	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
                 --region ${REGION} \
@@ -147,7 +151,7 @@ create-db: upload-db
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=InstanceType,ParameterValue=db.t2.small" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/env/${ENV}/DB_MASTER_PASSWORD | jq -r '.Parameter.Value')" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/env/${ENV}/DB_MASTER_PASSWORD | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
@@ -158,7 +162,7 @@ create-db: upload-db
 create-environment: create-foundation create-compute create-db
 
 ## Create new CF Build pipeline stack
-create-build: upload-build
+create-build: create-build-deps upload-build
 	@echo "Creating ${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
@@ -185,7 +189,7 @@ create-build: upload-build
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
 ## Create new CF app stack
-create-app: create-foundation-deps upload-app
+create-app: create-foundation-deps create-build-deps upload-app
 	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
@@ -238,6 +242,7 @@ update-foundation: upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
+			"ParameterKey=DomainCertGuid,ParameterValue=${DOMAIN_CERT}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -271,7 +276,7 @@ update-db: upload-db
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=InstanceType,ParameterValue=db.t2.small" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/env/${ENV}/DB_MASTER_PASSWORD | jq -r '.Parameter.Value')" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/env/${ENV}/DB_MASTER_PASSWORD | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
@@ -430,30 +435,35 @@ delete-foundation-stack:
 delete-foundation: delete-foundation-stack delete-foundation-deps
 
 ## Deletes the Compute CF stack
-delete-compute:
+delete-compute-stack:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Compute Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}; \
 	fi
 
+delete-compute: delete-compute-stack delete-compute-deps
+
 ## Deletes the DB CF stack
-delete-db:
+delete-db-stack:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} DB Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" --region ${REGION}; \
 	fi
 
+delete-db: delete-db-stack delete-db-deps
 
 ## Deletes the Environment CF stacks
 delete-environment: delete-db delete-compute delete-foundation
 
 ## Deletes the build pipeline CF stack
-delete-build:
+delete-build-stack:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${PROJECT} Pipeline Stack for repo: ${REPO}?"; then \
 		aws ecr batch-delete-image --region ${REGION} --repository-name ${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo --image-ids '$(shell aws ecr list-images --region ${REGION} --repository-name ${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo --query 'imageIds[*]' --output json)'; \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}; \
 	fi
+
+delete-build: delete-build-stack delete-build-deps
 
 ## Deletes the app CF stack
 delete-app:
