@@ -59,6 +59,12 @@ Resources:
           GroupSet:
             - Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
             - !Ref SecurityGroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            yum -y update
+            yum -y install mysql
 
 Outputs:
   BastionSshCommand:
