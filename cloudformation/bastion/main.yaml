@@ -29,13 +29,17 @@ Parameters:
   SshKeyName:
     Type: AWS::EC2::KeyPair::KeyName
 
+  IngressCidr:
+    Description: The IP source CIDR to allow to SSH to Bastion
+    Type: String
+
 Resources:
   SecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
       GroupDescription: !Sub ${AWS::StackName}-bastion
       SecurityGroupIngress:
-        - CidrIp: 0.0.0.0/0
+        - CidrIp: !Ref IngressCidr
           IpProtocol: TCP
           FromPort: 22
           ToPort: 22
