@@ -202,6 +202,22 @@ create-app: create-foundation-deps upload-app
 			"Key=Project,Value=${PROJECT}"
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
+create-bastion:
+	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" \
+                --region ${REGION} \
+                --disable-rollback \
+		--template-body "file://cloudformation/bastion/main.yaml" \
+		--capabilities CAPABILITY_NAMED_IAM \
+		--parameters \
+			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
+			"ParameterKey=Ami,ParameterValue=$(shell aws ec2 describe-images --region ${REGION} --owners 137112412989 | jq '.Images[] | {Name, ImageId} | select(.Name | contains("amzn-ami-hvm")) | select(.Name | contains("gp2")) | select(.Name | contains("rc") | not)' | jq -s 'sort_by(.Name) | reverse | .[0].ImageId' -r)" \
+		--tags \
+			"Key=Owner,Value=${OWNER}" \
+			"Key=Project,Value=${PROJECT}"
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" --region ${REGION}
+
 ## Updates existing Foundation CF stack
 update-foundation: upload-templates
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
@@ -378,6 +394,19 @@ outputs-app:
 		--stack-name "$${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
 		--query "Stacks[][Outputs] | []" | jq
 
+## Print Bastion stack's status
+status-bastion:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" \
+		--query "Stacks[][StackStatus] | []" | jq
+
+## Print Bastion stack's outputs
+outputs-bastion:
+	@aws cloudformation describe-stacks \
+                --region ${REGION} \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" \
+		--query "Stacks[][Outputs] | []" | jq
 
 ## Deletes the Foundation CF stack
 delete-foundation:
@@ -417,6 +446,13 @@ delete-app:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the App Stack for environment: ${ENV} repo: ${REPO}?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" --region ${REGION}; \
+	fi
+
+## Deletes the Bastion CF stack
+delete-bastion:
+	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Bastion Stack?"; then \
+		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-bastion"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" --region ${REGION}; \
 	fi
 
 upload-templates: upload-foundation upload-app
