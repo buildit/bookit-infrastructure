@@ -198,6 +198,126 @@ Resources:
         ResourceRecords:
         - !GetAtt DatabaseCluster.Endpoint.Address
 
+  DatabasePrimaryCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Primary database CPU utilization is over 80%.
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Unit: Percent
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabasePrimaryInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      InsufficientDataActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabaseReplicaCPUAlarm:
+    Condition: ShouldCreateReplica
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Replica database CPU utilization is over 80%.
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Unit: Percent
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabaseReplicaInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      InsufficientDataActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabasePrimaryMemoryAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Primary database freeable memory is under 700MB.
+      Namespace: AWS/RDS
+      MetricName: FreeableMemory
+      Unit: Bytes
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 700000000
+      ComparisonOperator: LessThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabasePrimaryInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      InsufficientDataActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabaseReplicaMemoryAlarm:
+    Condition: ShouldCreateReplica
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Replica database freeable memory is under 700MB.
+      Namespace: AWS/RDS
+      MetricName: FreeableMemory
+      Unit: Bytes
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 700000000
+      ComparisonOperator: LessThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabaseReplicaInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      InsufficientDataActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabasePrimaryReplicationAlarm:
+    Condition: ShouldCreateReplica
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Database replication latency is over 200ms.
+      Namespace: AWS/RDS
+      MetricName: AuroraReplicaLag
+      Unit: Milliseconds
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 200
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabaseReplicaInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabaseReplicaReplicationAlarm:
+    Condition: ShouldCreateReplica
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Database replication latency is over 200ms.
+      Namespace: AWS/RDS
+      MetricName: AuroraReplicaLag
+      Unit: Milliseconds
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 200
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabaseReplicaInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
 # TODOS
 # take a snapshot before tearing down
 # stop auto snapshots from being deleted when DB replaced/deleted? http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html
