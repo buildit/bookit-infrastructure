@@ -421,11 +421,13 @@ outputs-bastion:
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Deletes the Foundation CF stack
-delete-foundation: delete-foundation-deps
+delete-foundation-stack:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Foundation Stack?"; then \
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" --region ${REGION}; \
 	fi
+
+delete-foundation: delete-foundation-stack delete-foundation-deps
 
 ## Deletes the Compute CF stack
 delete-compute:
