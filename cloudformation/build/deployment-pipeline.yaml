@@ -262,8 +262,7 @@ Resources:
           - Name: BRANCH
             Value: !Ref GitHubBranch
           - Name: SSM_BUILD_NAMESPACE
-            Value:
-              Fn::ImportValue: !Sub "${SsmNamespacePrefix}/build"
+            Value: !Sub "${SsmNamespacePrefix}/build"
           - Name: REPORTS_BUCKET
             Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'build' ] ]
@@ -295,11 +294,9 @@ Resources:
           - Name: BRANCH
             Value: !Ref GitHubBranch
           - Name: SSM_BUILD_NAMESPACE
-            Value:
-              Fn::ImportValue: !Sub "${SsmNamespacePrefix}/build"
+            Value: !Sub "${SsmNamespacePrefix}/build"
           - Name: SSM_ENV_NAMESPACE
-            Value:
-              Fn::ImportValue: !Sub "${SsmNamespacePrefix}/env/integration"
+            Value: !Sub "${SsmNamespacePrefix}/env/integration"
           - Name: REPORTS_BUCKET
             Value: !Sub "s3://${BuildArtifactsBucket}/${AWS::StackName}/reports"
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'e2e', 'test' ] ]
