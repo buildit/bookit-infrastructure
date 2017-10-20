@@ -328,3 +328,4 @@ Resources:
 # take a snapshot before tearing down
 # stop auto snapshots from being deleted when DB replaced/deleted? http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html
 # IAM auth?
+# reenable enhanced monitoring (something messed up w/ monitoring role)
