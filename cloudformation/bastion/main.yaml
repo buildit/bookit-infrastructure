@@ -61,7 +61,7 @@ Resources:
             - !Ref SecurityGroup
 
 Outputs:
-  BastionInstance:
+  BastionSshCommand:
     Export:
       Name: !Sub "${AWS::StackName}--Bastion--DNS"
-    Value: !GetAtt BastionInstance.PublicDnsName
+    Value: !Sub "ssh -i ~/.ssh/${SshKeyName} ec2-user@${BastionInstance.PublicDnsName}"
