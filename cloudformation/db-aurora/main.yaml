@@ -66,7 +66,7 @@ Mappings:
       DbSubnetCidrBlocks: ["10.3.100.0/24","10.3.110.0/24"]
       BackupRetention: 14
       Replication: true
-      EnhancedMonitoring: true
+      EnhancedMonitoring: false
 
 Conditions:
   ShouldCreateReplica: !Equals [ !FindInMap [ EnvironmentMap, !Ref Environment, Replication ], true ]
@@ -137,19 +137,20 @@ Resources:
     Condition: ShouldEnableEnhancedMonitoring
     Type: 'AWS::IAM::Role'
     Properties:
+      Path: /
       ManagedPolicyArns:
-      - 'arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole'
+        - 'arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole'
       AssumeRolePolicyDocument:
-        Version: '2008-10-17'
+        Version: 2012-10-17
         Statement:
-        - Effect: Allow
-          Principal:
-            Service: 'rds.amazonaws.com'
-          Action: 'sts:AssumeRole'
-        - Effect: Allow
-          Principal:
-            Service: 'monitoring.rds.amazonaws.com'
-          Action: 'sts:AssumeRole'
+          - Effect: Allow
+            Principal:
+              Service: 'rds.amazonaws.com'
+            Action: 'sts:AssumeRole'
+          - Effect: Allow
+            Principal:
+              Service: 'monitoring.rds.amazonaws.com'
+            Action: 'sts:AssumeRole'
 
   DatabaseCluster:
     Type: AWS::RDS::DBCluster
