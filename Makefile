@@ -98,6 +98,7 @@ delete-deps:
 
 ## Creates a new CF stack
 create-foundation: create-foundation-deps upload-templates
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-foundation stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/foundation/main.yaml" \
@@ -118,6 +119,7 @@ create-foundation: create-foundation-deps upload-templates
 
 ## Create new CF compute stack
 create-compute: upload-compute
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-compute-ecs stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -134,6 +136,7 @@ create-compute: upload-compute
 
 ## Create new CF db stack
 create-db: upload-db
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -156,6 +159,7 @@ create-environment: create-foundation create-compute create-db
 
 ## Create new CF Build pipeline stack
 create-build: upload-build
+	@echo "Creating ${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -182,6 +186,7 @@ create-build: upload-build
 
 ## Create new CF app stack
 create-app: create-foundation-deps upload-app
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -203,6 +208,7 @@ create-app: create-foundation-deps upload-app
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
 create-bastion:
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-bastion stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -221,6 +227,7 @@ create-bastion:
 
 ## Updates existing Foundation CF stack
 update-foundation: upload-templates
+	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-foundation stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/foundation/main.yaml" \
@@ -239,6 +246,7 @@ update-foundation: upload-templates
 
 ## Update CF compute stack
 update-compute: upload-compute
+	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-compute-ecs stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/compute-ecs/main.yaml" \
@@ -253,6 +261,7 @@ update-compute: upload-compute
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
 
 update-db: upload-db
+	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/db-aurora/main.yaml" \
@@ -274,6 +283,7 @@ update-environment: update-foundation update-compute update-db
 
 ## Update existing Build Pipeline CF Stack
 update-build: upload-build
+	@echo "Updating ${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/build/deployment-pipeline.yaml" \
@@ -299,6 +309,7 @@ update-build: upload-build
 
 ## Update App CF stack
 update-app: upload-app
+	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
 		--template-body "file://cloudformation/app/app.yaml" \
