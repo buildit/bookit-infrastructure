@@ -254,7 +254,7 @@ Resources:
       Statistic: Average
       Period: 300
       EvaluationPeriods: 2
-      Threshold: 700000000
+      Threshold: 200000000
       ComparisonOperator: LessThanOrEqualToThreshold
       Dimensions:
         - Name: DBInstanceIdentifier
@@ -275,7 +275,7 @@ Resources:
       Statistic: Average
       Period: 300
       EvaluationPeriods: 2
-      Threshold: 700000000
+      Threshold: 200000000
       ComparisonOperator: LessThanOrEqualToThreshold
       Dimensions:
         - Name: DBInstanceIdentifier
