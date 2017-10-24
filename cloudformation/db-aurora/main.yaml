@@ -1,0 +1,336 @@
+---
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Database subnets and instance.
+
+Parameters:
+  FoundationStackName:
+    Description: Foundation Stack Name
+    Type: String
+
+  ComputeStackName:
+    Description: Compute Stack Name
+    Type: String
+
+  InstanceType:
+    Type: String
+    Default: db.t2.small
+    AllowedValues:
+      - db.t2.small
+      - db.t2.medium
+      - db.r3.large
+      - db.r3.xlarge
+      - db.r3.2xlarge
+      - db.r3.4xlarge
+      - db.r3.8xlarge
+
+  Environment:
+    Description: Stack environment
+    Type: String
+    AllowedValues:
+      - integration
+      - staging
+      - production
+
+  MasterUsername:
+    Description: DB admin username
+    Type: String
+    Default: "admin"
+
+  MasterPassword:
+    Description: DB admin password
+    Type: String
+    AllowedPattern: "[a-zA-Z0-9\\!\\#\\$\\%\\^\\&\\*\\(\\)\\[\\]\\{\\}\\-\\_\\+\\=\\?\\>\\<\\,\\.\\:\\;\\'\\~|]+"
+    ConstraintDescription: "must not contain /, @, or \""
+    MaxLength: '41'
+    MinLength: '8'
+    NoEcho: 'true'
+
+  DatabaseName:
+    Description: Name of the database created
+    Type: String
+
+Mappings:
+  EnvironmentMap:
+    integration:
+      DbSubnetCidrBlocks: ["10.1.100.0/24","10.1.110.0/24"]
+      BackupRetention: 1
+      Replication: false
+      EnhancedMonitoring: false
+    staging:
+      DbSubnetCidrBlocks: ["10.2.100.0/24","10.2.110.0/24"]
+      BackupRetention: 5
+      Replication: false
+      EnhancedMonitoring: false
+    production:
+      DbSubnetCidrBlocks: ["10.3.100.0/24","10.3.110.0/24"]
+      BackupRetention: 14
+      Replication: true
+      EnhancedMonitoring: false
+
+Conditions:
+  ShouldCreateReplica: !Equals [ !FindInMap [ EnvironmentMap, !Ref Environment, Replication ], true ]
+  ShouldEnableEnhancedMonitoring: !Equals [ !FindInMap [ EnvironmentMap, !Ref Environment, EnhancedMonitoring ], true ]
+
+Resources:
+  DbSubnetPrivateA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      CidrBlock: !Select [ 0, !FindInMap [ EnvironmentMap, !Ref Environment, DbSubnetCidrBlocks ] ]
+      # this really sucks... but as of right now 10/18/17 we can't create RDS-Aurora instances in us-east-1a so hacking...
+      AvailabilityZone: !Select [ 2, !GetAZs ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--DbSubnetPrivateA"
+
+  DbSubnetPrivateB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      CidrBlock: !Select [ 1, !FindInMap [ EnvironmentMap, !Ref Environment, DbSubnetCidrBlocks ] ]
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--DbSubnetPrivateB"
+
+  DbSubnetPrivateARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: DbSubnetPrivateA
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateA"
+
+  DbSubnetPrivateBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: DbSubnetPrivateB
+      RouteTableId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--RouteTablePrivateB"
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+        DBSubnetGroupDescription: DB subnet group.
+        SubnetIds:
+          - !Ref DbSubnetPrivateA
+          - !Ref DbSubnetPrivateB
+
+  DatabaseSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub ${AWS::StackName}
+      SecurityGroupIngress:
+        - SourceSecurityGroupId:
+            Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
+          IpProtocol: TCP
+          FromPort: 3306
+          ToPort: 3306
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+
+  DatabaseMonitoringRole:
+    Condition: ShouldEnableEnhancedMonitoring
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'rds.amazonaws.com'
+            Action: 'sts:AssumeRole'
+          - Effect: Allow
+            Principal:
+              Service: 'monitoring.rds.amazonaws.com'
+            Action: 'sts:AssumeRole'
+
+  DatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterPassword
+      BackupRetentionPeriod: !FindInMap [ EnvironmentMap, !Ref Environment, BackupRetention ]
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroup
+      DatabaseName: !Ref DatabaseName
+
+  DatabasePrimaryInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: aurora
+      DBClusterIdentifier: !Ref DatabaseCluster
+      DBInstanceClass: !Ref InstanceType
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      CopyTagsToSnapshot: true
+      MonitoringInterval: !If [ ShouldEnableEnhancedMonitoring , 60, 0]
+      MonitoringRoleArn: !If [ ShouldEnableEnhancedMonitoring, !Ref DatabaseMonitoringRole, !Ref "AWS::NoValue" ]
+
+  DatabaseReplicaInstance:
+    Type: AWS::RDS::DBInstance
+    Condition: ShouldCreateReplica
+    Properties:
+      Engine: aurora
+      DBClusterIdentifier: !Ref DatabaseCluster
+      DBInstanceClass: !Ref InstanceType
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      CopyTagsToSnapshot: true
+      MonitoringInterval: !If [ ShouldEnableEnhancedMonitoring , 60, 0]
+      MonitoringRoleArn: !If [ ShouldEnableEnhancedMonitoring, !Ref DatabaseMonitoringRole, !Ref "AWS::NoValue" ]
+
+  DatabaseInternalDns:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--InternalDns"
+      Comment: DNS for Aurora.
+      RecordSets:
+      - Name: !Join
+          - '.'
+          - - "aurora"
+            - Fn::ImportValue: !Sub "${FoundationStackName}--InternalHostedZoneName"
+        Type: CNAME
+        TTL: '300'
+        ResourceRecords:
+        - !GetAtt DatabaseCluster.Endpoint.Address
+
+  DatabasePrimaryCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Primary database CPU utilization is over 80%.
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Unit: Percent
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabasePrimaryInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      InsufficientDataActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabaseReplicaCPUAlarm:
+    Condition: ShouldCreateReplica
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Replica database CPU utilization is over 80%.
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Unit: Percent
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabaseReplicaInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      InsufficientDataActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabasePrimaryMemoryAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Primary database freeable memory is under 700MB.
+      Namespace: AWS/RDS
+      MetricName: FreeableMemory
+      Unit: Bytes
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 200000000
+      ComparisonOperator: LessThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabasePrimaryInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      InsufficientDataActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabaseReplicaMemoryAlarm:
+    Condition: ShouldCreateReplica
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Replica database freeable memory is under 700MB.
+      Namespace: AWS/RDS
+      MetricName: FreeableMemory
+      Unit: Bytes
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 200000000
+      ComparisonOperator: LessThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabaseReplicaInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+      InsufficientDataActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabasePrimaryReplicationAlarm:
+    Condition: ShouldCreateReplica
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Database replication latency is over 200ms.
+      Namespace: AWS/RDS
+      MetricName: AuroraReplicaLag
+      Unit: Milliseconds
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 200
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabaseReplicaInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+  DatabaseReplicaReplicationAlarm:
+    Condition: ShouldCreateReplica
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Database replication latency is over 200ms.
+      Namespace: AWS/RDS
+      MetricName: AuroraReplicaLag
+      Unit: Milliseconds
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 200
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: DBInstanceIdentifier
+          Value: !Ref DatabaseReplicaInstance
+      AlarmActions:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
+
+# TODOS
+# resize an instance should not lose data
+# take a snapshot before tearing down
+# stop auto snapshots from being deleted when DB replaced/deleted? http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html
+# IAM auth?
+# reenable enhanced monitoring (something messed up w/ monitoring role)
+
+Outputs:
+  DatabaseCluster:
+    Description: Database cluster endpoint
+    Value: !GetAtt DatabaseCluster.Endpoint.Address

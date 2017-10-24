@@ -1,0 +1,77 @@
+---
+
+Description: Temporary Bastion
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  FoundationStackName:
+    Description: Foundation stack name upon which this cluster is installed.
+    Type: String
+
+  ComputeStackName:
+    Description: Compute stack name upon which this cluster is installed.
+    Type: String
+
+  Ami:
+    Description: The AMI to use for the bastion
+    Type: String
+
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+
+  SshKeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+
+  IngressCidr:
+    Description: The IP source CIDR to allow to SSH to Bastion
+    Type: String
+
+Resources:
+  SecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub ${AWS::StackName}-bastion
+      SecurityGroupIngress:
+        - CidrIp: !Ref IngressCidr
+          IpProtocol: TCP
+          FromPort: 22
+          ToPort: 22
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+
+  BastionInstance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref Ami
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref SshKeyName
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}--Bastion"
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: "true"
+          SubnetId:
+            Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPublicA"
+          DeviceIndex: "0"
+          GroupSet:
+            - Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
+            - !Ref SecurityGroup
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash
+            yum -y update
+            yum -y install mysql
+
+Outputs:
+  BastionSshCommand:
+    Export:
+      Name: !Sub "${AWS::StackName}--Bastion--DNS"
+    Value: !Sub "ssh -i ~/.ssh/${SshKeyName} ec2-user@${BastionInstance.PublicDnsName}"
