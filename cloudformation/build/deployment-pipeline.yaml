@@ -409,6 +409,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
+                    "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration"
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               InputArtifacts:
@@ -456,6 +457,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
+                    "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/staging"
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               InputArtifacts:
@@ -495,6 +497,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
+                    "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/production"
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               RunOrder: 1

@@ -24,9 +24,9 @@ Parameters:
     Description: Public Domain Name for sites and services created by this stack.
     Type: String
 
-  # ParameterStoreNamespace:
-  #   Description: Namespace in parameter store from which configuration values will be taken.
-  #   Type: String
+  SsmEnvironmentNamespace:
+    Description: Namespace in parameter store from which configuration values will be taken.
+    Type: String
 
   Repository:
     Description: ECR Repository
@@ -58,8 +58,9 @@ Parameters:
 
 Conditions:
   ShouldCreatePreferredCname: !And
-  - !Equals [ !Ref Environment, production ]
-  - !Equals [ !Ref Prefix, "" ]
+    - !Equals [ !Ref Environment, production ]
+    - !Equals [ !Ref Prefix, "" ]
+  ShouldCreateErrorLogAlarm: !Not [ !Equals [ !Ref Environment, integration ] ]
 
 Resources:
   # LoadBalancer:
@@ -240,6 +241,7 @@ Resources:
           Value: !Ref PreferredExternalHealthCheck
 
   LogErrorCountMetricFilter:
+    Condition: ShouldCreateErrorLogAlarm
     Type: AWS::Logs::MetricFilter
     Properties:
       LogGroupName: !Ref CloudWatchLogsGroup
@@ -250,6 +252,7 @@ Resources:
           MetricName: !Sub "${Prefix}${ApplicationName}${Environment}ErrorCount"
 
   LogErrorCountAlarm:
+    Condition: ShouldCreateErrorLogAlarm
     Type: AWS::CloudWatch::Alarm
     Properties:
       ActionsEnabled: true
@@ -358,14 +361,22 @@ Resources:
           Environment:
             - Name: Tag
               Value: !Ref Tag
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: AWS_ENV_PATH
+              Value: !Ref SsmEnvironmentNamespace
+            - Name: BOOKIT_DATABASE_USER
+              Value: admin
+            - Name: BOOKIT_DATABASE_URL
+              Value: "jdbc:mysql://aurora.bookit.internal/bookit"
+            - Name: BOOKIT_DATABASE_DRIVER
+              Value: com.mysql.jdbc.Driver
             # - Name: USE_AZURE
             #   Value: true
             # - Name: ACTUAL_BOOKIT_API_URL  # This is the actual/true HTTP URL of the running service (DNS Name-based).
             #   Value: !Ref BookitApiDomainName
             # - Name: BOOKIT_API_BASE_URL   # This is a logical URL used by the Bookit app itself to define the endpoint it talks to.
             #   Value: /api  # Mapped to the ACTUAL_BOOKIT_API_URL via a reverse proxy config in nginx.
-            # - Name: PARAMETER_STORE_NAMESPACE
-            #   Value: !Ref ParameterStoreNamespace
 
 Outputs:
   ApplicationUrl:

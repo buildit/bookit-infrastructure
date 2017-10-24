@@ -71,22 +71,22 @@ delete-db-deps:
 create-deps:
 	@echo "Update SSM build parameters: /${OWNER}/${PROJECT}/build"
 	@read -p 'GitHub OAuth Token: (<ENTER> will keep existing) ' REPO_TOKEN; \
-		[ -z $$REPO_TOKEN ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --description "GitHub Repo Token" --type "String" --value "$$REPO_TOKEN" --overwrite
+		[ -z $$REPO_TOKEN ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --description "GitHub Repo Token" --type "SecureString" --value "$$REPO_TOKEN" --overwrite
 	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/integration"
 	@read -p 'Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
-		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "String" --value "$$DB_MASTER_PASSWORD" --overwrite
-	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_USER_PASSWORD; \
-		[ -z $$BOOKIT_USER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/BOOKIT_USER_PASSWORD" --description "Bookit Database User Password (integration)" --type "String" --value "$$BOOKIT_USER_PASSWORD" --overwrite
+		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
+	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
+		[ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (integration)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
 	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/staging"
 	@read -p 'Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
-		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "String" --value "$$DB_MASTER_PASSWORD" --overwrite
-	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_USER_PASSWORD; \
-		[ -z $$BOOKIT_USER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/BOOKIT_USER_PASSWORD" --description "Bookit Database User Password (staging)" --type "String" --value "$$BOOKIT_USER_PASSWORD" --overwrite
+		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
+	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
+		[ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (staging)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
 	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/production"
 	@read -p 'Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
-		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "String" --value "$$DB_MASTER_PASSWORD" --overwrite
-	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_USER_PASSWORD; \
-		[ -z $$BOOKIT_USER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_USER_PASSWORD" --description "Bookit Database User Password (production)" --type "String" --value "$$BOOKIT_USER_PASSWORD" --overwrite
+		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
+	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
+		[ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (production)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
 
 update-deps: create-deps
 
@@ -94,9 +94,12 @@ update-deps: create-deps
 delete-deps:
 	aws ssm delete-parameters --region ${REGION} --names \
 		"/${OWNER}/${PROJECT}/build/REPO_TOKEN" \
-		"/${OWNER}/${PROJECT}/env/integration/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/staging/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/production/DB_MASTER_PASSWORD"
+		"/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" \
+		"/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" \
+		"/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD"
+		"/${OWNER}/${PROJECT}/env/integration/BOOKIT_DATABASE_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/staging/BOOKIT_DATABASE_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/production/BOOKIT_DATABASE_PASSWORD"
 
 ## Creates Foundation and Build
 
@@ -151,7 +154,7 @@ create-db: create-db-deps upload-db
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=InstanceType,ParameterValue=db.t2.small" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/env/${ENV}/DB_MASTER_PASSWORD | jq -r '.Parameter.Value')\"" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
@@ -176,7 +179,7 @@ create-build: create-build-deps upload-build
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
-			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/build/REPO_TOKEN | jq -r '.Parameter.Value')" \
+			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
@@ -276,7 +279,7 @@ update-db: upload-db
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=InstanceType,ParameterValue=db.t2.small" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/env/${ENV}/DB_MASTER_PASSWORD | jq -r '.Parameter.Value')\"" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
@@ -300,7 +303,7 @@ update-build: upload-build
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
-			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN | jq -r '.Parameter.Value')" \
+			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
