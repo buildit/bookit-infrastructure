@@ -409,7 +409,7 @@ Resources:
                     "ContainerPort": "${ContainerPort}",
                     "TaskDesiredCount":"1",
                     "ListenerRulePriority": "${ListenerRulePriority}",
-                    "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration"
+                    "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration",
                     "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                   }
               InputArtifacts:
