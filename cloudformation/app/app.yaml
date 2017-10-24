@@ -332,6 +332,11 @@ Resources:
             Version: 2012-10-17
             Statement:
               # TODO:  this needs to be tightened-up.
+              - Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmEnvironmentNamespace}
+                Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParametersByPath
               - Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmEnvironmentNamespace}/*
                 Effect: Allow
                 Action:
