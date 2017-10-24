@@ -336,6 +336,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - ssm:GetParameters
+                  - ssm:GetParametersByPath
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
