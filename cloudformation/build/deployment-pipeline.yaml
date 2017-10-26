@@ -72,11 +72,11 @@ Conditions:
 Mappings:
   EnvironmentDefaults:
    integration:
-     DesiredTasks: 2
+     DesiredTasks: 1
    staging:
-     DesiredTasks: 2
+     DesiredTasks: 1
    production:
-     DesiredTasks: 4
+     DesiredTasks: 1
 
 Resources:
   Repository:
