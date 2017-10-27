@@ -104,7 +104,7 @@ delete-deps:
 ## Creates Foundation and Build
 
 ## Creates a new CF stack
-create-foundation: create-foundation-deps upload-templates
+create-foundation: create-foundation-deps upload-foundation
 	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-foundation stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
                 --region ${REGION} \
@@ -233,7 +233,7 @@ create-bastion:
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" --region ${REGION}
 
 ## Updates existing Foundation CF stack
-update-foundation: upload-templates
+update-foundation: upload-foundation
 	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-foundation stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
                 --region ${REGION} \
@@ -481,8 +481,6 @@ delete-bastion:
 		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-bastion"; \
 		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" --region ${REGION}; \
 	fi
-
-upload-templates: upload-foundation upload-app
 
 ## Upload CF Templates to S3
 # Uploads foundation templates to the Foundation bucket
