@@ -117,6 +117,7 @@ create-foundation: create-foundation-deps upload-templates
 			"ParameterKey=ProjectName,ParameterValue=${PROJECT}" \
 			"ParameterKey=PublicDomainName,ParameterValue=${DOMAIN}" \
 			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
+			"ParameterKey=Region,ParameterValue=${REGION}" \
 			"ParameterKey=DomainCertGuid,ParameterValue=${DOMAIN_CERT}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \

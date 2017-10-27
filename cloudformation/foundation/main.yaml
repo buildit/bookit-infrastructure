@@ -32,6 +32,10 @@ Parameters:
     Type: String
     Default: ""
 
+  Region:
+    Description: AWS Region
+    Type: String
+
   DomainCertGuid:
     Description: GUID for the Cert for the Domain
     Type: String
@@ -70,7 +74,7 @@ Resources:
         CidrBlock: !FindInMap [ EnvironmentToCidr, !Ref Environment, CidrBlock ]
         Environment: !Ref Environment
         FoundationStackName: !Sub ${AWS::StackName}
-        Region: !Sub ${AWS::Region}
+        Region: !Sub ${Region}
         SubnetPrivateCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPrivateCidrBlocks ]
         SubnetPublicCidrBlocks: !FindInMap [ EnvironmentToCidr, !Ref Environment, SubnetPublicCidrBlocks ]
         InternalHostedZoneName: !Sub "${ProjectName}.internal"
@@ -106,6 +110,7 @@ Resources:
       TemplateURL: !Sub https://s3.amazonaws.com/${FoundationBucket}/templates/load-balancer.yaml
       Parameters:
         FoundationStackName: !Sub ${AWS::StackName}
+        Region: !Ref Region
         DomainCertGuid: !Ref DomainCertGuid
 
   Sns:
