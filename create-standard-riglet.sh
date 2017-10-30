@@ -7,7 +7,7 @@ function createEnvironment() {
   echo "Y" | make create-foundation ENV=${1} && \
   echo "Y" | make create-compute ENV=${1} && \
   echo "Y" | make create-db ENV=${1} && \
-  echo "Y" | make create-app-deps ENV=${1}
+  echo "Y" | make create-app-deps ENV=${1} && \
   echo "Y" | make upload-app ENV=${1}
 }
 
