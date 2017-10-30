@@ -33,18 +33,21 @@ create-build-deps:
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --versioning-configuration Status=Enabled --region "${REGION}"
 	@aws s3 website s3://rig.${OWNER}.${PROJECT}.${REGION}.build/ --index-document index.html --region "${REGION}"
 
+delete-build-deps:
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.build && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
+
+create-app-deps:
 	@echo "Create App S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} --region "${REGION}" # Storage for InfraDev
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
-delete-build-deps:
+delete-app-deps:
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null && \
 		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} && \
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.build && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
 
 create-compute-deps:
 	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
@@ -162,7 +165,7 @@ create-db: create-db-deps upload-db
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" --region ${REGION}
 
 ## Create new CF environment stacks
-create-environment: create-foundation create-compute create-db
+create-environment: create-foundation create-compute create-db create-app-deps upload-app
 
 ## Create new CF Build pipeline stack
 create-build: create-build-deps upload-build
@@ -192,7 +195,7 @@ create-build: create-build-deps upload-build
 	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" --region ${REGION}
 
 ## Create new CF app stack
-create-app: create-foundation-deps create-build-deps upload-app
+create-app: create-app-deps upload-app
 	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
@@ -287,7 +290,7 @@ update-db: upload-db
 	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" --region ${REGION}
 
 ## Update CF environment stacks
-update-environment: update-foundation update-compute update-db
+update-environment: update-foundation update-compute update-db upload-app
 
 ## Update existing Build Pipeline CF Stack
 update-build: upload-build
@@ -456,7 +459,7 @@ delete-db-stack:
 delete-db: delete-db-stack delete-db-deps
 
 ## Deletes the Environment CF stacks
-delete-environment: delete-db delete-compute delete-foundation
+delete-environment: delete-db delete-compute delete-foundation delete-app-deps
 
 ## Deletes the build pipeline CF stack
 delete-build-stack:

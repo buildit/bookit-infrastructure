@@ -9,6 +9,7 @@ function deleteEnvironment() {
   echo "Y" | make delete-db ENV=${1}
   echo "Y" | make delete-compute ENV=${1}
   echo "Y" | make delete-foundation ENV=${1}
+  echo "Y" | make delete-app-deps ENV=${1}
 }
 
 function deleteAppsAndBuild() {
