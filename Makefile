@@ -99,7 +99,7 @@ delete-deps:
 		"/${OWNER}/${PROJECT}/build/REPO_TOKEN" \
 		"/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" \
-		"/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD"
+		"/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/env/integration/BOOKIT_DATABASE_PASSWORD" \
 		"/${OWNER}/${PROJECT}/env/staging/BOOKIT_DATABASE_PASSWORD" \
 		"/${OWNER}/${PROJECT}/env/production/BOOKIT_DATABASE_PASSWORD"
