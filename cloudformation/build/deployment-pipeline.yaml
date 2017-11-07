@@ -44,20 +44,23 @@ Parameters:
     Description: The unique priority across applications sharing the ALB
     Type: Number
 
-  SlackChannel:
-    Description: Slack channel (no \#) to post to
+  SlackWebhook:
     Type: String
     Default: ""
 
   EmailAddress:
     Description: Email address to send build notifications to
     Type: String
-    Default: ""
+
+  Project:
+    Type: String
+
+  Owner:
+    Type: String
 
   SsmNamespacePrefix:
     Description: The prefix SSM namespace where the stack can find needed parameters
     Type: String
-
 
   # CodeBuildProjectTestImage:
   #   Description: The CodeBuild image to run the e2e tests in
@@ -68,6 +71,8 @@ Parameters:
 
 Conditions:
   EmailSpecified: !Not [ !Equals [ !Ref EmailAddress, "" ] ]
+
+  WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
 Mappings:
   EnvironmentDefaults:
@@ -83,14 +88,6 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'ecr', 'repo' ] ]
-
-#  CodePipelineSNSTopic:
-#     Condition: ShouldCreateSns
-#     Type: AWS::SNS::Topic
-#     Properties:
-#       Subscription:
-#         - Endpoint: "https://hooks.slack.com/services/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"
-#           Protocol: https
 
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
@@ -119,6 +116,33 @@ Resources:
                   - elasticloadbalancing:*
                   - logs:*
                   - cloudwatch:*
+
+  LambdaNotifcationExecutionRole:
+    Type: AWS::IAM::Role
+    Condition: WebhookSpecified
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: arn:aws:logs:*:*:*
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Resource: arn:aws:codepipeline:*
+                Effect: Allow
+                Action:
+                  - codepipeline:GetPipelineExecution
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
@@ -249,6 +273,86 @@ Resources:
         - Arn: !Ref SnsTopic
           Id: !Sub "${AWS::StackName}"
 
+  LambdaNotifications:
+    Type: AWS::Lambda::Function
+    Condition: WebhookSpecified
+    Properties:
+      Handler: BuildNotification.handler
+      Role:
+        !GetAtt LambdaNotifcationExecutionRole.Arn
+      Code:
+        S3Bucket: !Sub "${BuildArtifactsBucket}"
+        S3Key: lambdas/handlers.zip
+      Runtime: nodejs6.10
+      Timeout: 5
+      Environment:
+        Variables:
+          BRANCH: !Ref GitHubBranch
+          HOOK_URL: !Ref SlackWebhook
+          TARGET_STAGES: Staging;Production
+          REPO: !Ref GitHubRepo
+          PROJECT: !Ref Project
+          OWNER: !Ref Owner
+
+  EventRuleBuildFailures:
+    Type: "AWS::Events::Rule"
+    Condition: WebhookSpecified
+    Properties:
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-fail-rule"
+      Description: "Traps stage failures and notifies slack"
+      EventPattern:
+        source:
+          - "aws.codepipeline"
+        detail:
+          state:
+            - FAILED
+          pipeline:
+            - Ref: Pipeline
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt LambdaNotifications.Arn
+          Id: !Sub "${AWS::StackName}"
+
+  EventRuleBuildSuccesses:
+    Type: "AWS::Events::Rule"
+    Condition: WebhookSpecified
+    Properties:
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-pass-rule"
+      Description: "Traps stage successes and notifies slack"
+      EventPattern:
+        source:
+          - "aws.codepipeline"
+        detail:
+          state:
+            - SUCCEEDED
+          pipeline:
+            - Ref: Pipeline
+          stage:
+            - Staging
+            - Production
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt LambdaNotifications.Arn
+          Id: !Sub "${AWS::StackName}"
+
+  PermissionForFailEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Condition: WebhookSpecified
+    Properties:
+      FunctionName: !Ref LambdaNotifications
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EventRuleBuildFailures.Arn
+
+  PermissionForPassEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Condition: WebhookSpecified
+    Properties:
+      FunctionName: !Ref LambdaNotifications
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EventRuleBuildSuccesses.Arn
+
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -259,13 +363,8 @@ Resources:
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
         Image: "aws/codebuild/docker:1.12.1"
-        # Image: "aws/codebuild/java:openjdk-8"
-        # Image: "aws/codebuild/eb-java-8-amazonlinux-64:2.4.3"
-        # PrivilegedMode: true
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
-        #   - Name: AWS_REGION
-        #     Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
@@ -287,15 +386,9 @@ Resources:
         BuildSpec: buildspec.e2e.yml
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
-        # Image: !Ref CodeBuildProjectTestImage
         Image: "aws/codebuild/docker:1.12.1"
-        # Image: "aws/codebuild/java:openjdk-8"
-        # Image: "aws/codebuild/eb-java-8-amazonlinux-64:2.4.3"
-        # PrivilegedMode: true
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
-        #   - Name: AWS_REGION
-        #     Value: !Ref AWS::Region
           - Name: ENDPOINT_URI
             Value: !Sub "https://${Prefix}integration-${ApplicationName}.${PublicDomainName}"
           - Name: REPOSITORY_URI

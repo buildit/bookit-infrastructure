@@ -168,7 +168,7 @@ create-db: create-db-deps upload-db
 create-environment: create-foundation create-compute create-db create-app-deps upload-app
 
 ## Create new CF Build pipeline stack
-create-build: create-build-deps upload-build
+create-build: create-build-deps upload-build upload-lambdas
 	@echo "Creating ${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
@@ -189,6 +189,9 @@ create-build: create-build-deps upload-build
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 			"ParameterKey=SsmNamespacePrefix,ParameterValue=/${OWNER}/${PROJECT}" \
+			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
+			"ParameterKey=Project,ParameterValue=${PROJECT}" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -313,6 +316,9 @@ update-build: upload-build
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 			"ParameterKey=SsmNamespacePrefix,ParameterValue=/${OWNER}/${PROJECT}" \
+			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
+			"ParameterKey=Project,ParameterValue=${PROJECT}" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -518,6 +524,13 @@ upload-db:
 upload-build:
 	@aws s3 cp --recursive cloudformation/build/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build/templates/
 
+upload-lambdas:
+	@pwd=$(shell pwd)
+	@cd lambdas && zip handlers.zip *.js
+	@cd ${pwd}
+	@aws s3 cp lambdas/handlers.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.build/lambdas/
+	@rm lambdas/handlers.zip
+
 check-env:
 ifndef OWNER
 	$(error OWNER is undefined, should be in file .make)
@@ -568,6 +581,10 @@ help:
 			echo "\n${.YELLOW}[Cancelled]${.CLEAR}" && exit 1 ;; \
 	esac
 
+#.check-for-delete-bucket-jar:
+#	@if [ ! -f DeleteVersionedS3Bucket.jar ]; then \
+#		curl -O https://s3.amazonaws.com/baremetal-rig-helpers/DeleteVersionedS3Bucket.jar; \
+#	fi
 
 .make:
 	@touch .make
