@@ -62,13 +62,6 @@ Parameters:
     Description: The prefix SSM namespace where the stack can find needed parameters
     Type: String
 
-  # CodeBuildProjectTestImage:
-  #   Description: The CodeBuild image to run the e2e tests in
-  #   Type: String
-
-# Conditions:
-#   ShouldCreateSns: !Not [ Equals [ !Ref SlackChannel, "" ] ]
-
 Conditions:
   EmailSpecified: !Not [ !Equals [ !Ref EmailAddress, "" ] ]
 
@@ -116,33 +109,6 @@ Resources:
                   - elasticloadbalancing:*
                   - logs:*
                   - cloudwatch:*
-
-  LambdaNotifcationExecutionRole:
-    Type: AWS::IAM::Role
-    Condition: WebhookSpecified
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: "sts:AssumeRole"
-      Policies:
-        - PolicyName: root
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Resource: arn:aws:logs:*:*:*
-                Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-              - Resource: arn:aws:codepipeline:*
-                Effect: Allow
-                Action:
-                  - codepipeline:GetPipelineExecution
 
   CodeBuildServiceRole:
     DependsOn: CloudFormationExecutionRole
@@ -237,121 +203,6 @@ Resources:
                   - cloudformation:*
                   - iam:PassRole
                   - sns:Publish
-
-  SnsTopic:
-    Type: "AWS::SNS::Topic"
-    Properties:
-      TopicName: !Sub "${AWS::StackName}"
-
-  EmailSubscription:
-    Type: "AWS::SNS::Subscription"
-    Condition: EmailSpecified
-    Properties:
-      Endpoint: !Ref EmailAddress
-      Protocol: email
-      TopicArn: !Ref SnsTopic
-
-  # this is a WIP
-  CodePipelineEventRule:
-    Type: "AWS::Events::Rule"
-    Properties:
-      Description: !Sub "${AWS::StackName} Build notifications"
-      EventPattern:
-        source:
-          - "aws.codepipeline"
-        detail-type:
-          - "CodePipeline Pipeline Execution State Change"
-          - "CodePipeline Action Execution State Change"
-          - "CodePipeline Stage Execution State Change"
-        detail:
-          state:
-            - "FAILED"
-          pipeline:
-            - Ref: Pipeline
-      State: ENABLED
-      Targets:
-        - Arn: !Ref SnsTopic
-          Id: !Sub "${AWS::StackName}"
-
-  LambdaNotifications:
-    Type: AWS::Lambda::Function
-    Condition: WebhookSpecified
-    Properties:
-      Handler: BuildNotification.handler
-      Role:
-        !GetAtt LambdaNotifcationExecutionRole.Arn
-      Code:
-        S3Bucket: !Sub "${BuildArtifactsBucket}"
-        S3Key: lambdas/handlers.zip
-      Runtime: nodejs6.10
-      Timeout: 5
-      Environment:
-        Variables:
-          BRANCH: !Ref GitHubBranch
-          HOOK_URL: !Ref SlackWebhook
-          TARGET_STAGES: Staging;Production
-          REPO: !Ref GitHubRepo
-          PROJECT: !Ref Project
-          OWNER: !Ref Owner
-
-  EventRuleBuildFailures:
-    Type: "AWS::Events::Rule"
-    Condition: WebhookSpecified
-    Properties:
-      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-fail-rule"
-      Description: "Traps stage failures and notifies slack"
-      EventPattern:
-        source:
-          - "aws.codepipeline"
-        detail:
-          state:
-            - FAILED
-          pipeline:
-            - Ref: Pipeline
-      State: "ENABLED"
-      Targets:
-        - Arn: !GetAtt LambdaNotifications.Arn
-          Id: !Sub "${AWS::StackName}"
-
-  EventRuleBuildSuccesses:
-    Type: "AWS::Events::Rule"
-    Condition: WebhookSpecified
-    Properties:
-      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-pass-rule"
-      Description: "Traps stage successes and notifies slack"
-      EventPattern:
-        source:
-          - "aws.codepipeline"
-        detail:
-          state:
-            - SUCCEEDED
-          pipeline:
-            - Ref: Pipeline
-          stage:
-            - Staging
-            - Production
-      State: "ENABLED"
-      Targets:
-        - Arn: !GetAtt LambdaNotifications.Arn
-          Id: !Sub "${AWS::StackName}"
-
-  PermissionForFailEventsToInvokeLambda:
-    Type: AWS::Lambda::Permission
-    Condition: WebhookSpecified
-    Properties:
-      FunctionName: !Ref LambdaNotifications
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt EventRuleBuildFailures.Arn
-
-  PermissionForPassEventsToInvokeLambda:
-    Type: AWS::Lambda::Permission
-    Condition: WebhookSpecified
-    Properties:
-      FunctionName: !Ref LambdaNotifications
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt EventRuleBuildSuccesses.Arn
 
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -647,6 +498,63 @@ Resources:
                 - Name: ProductionEnvironment
               RunOrder: 3
 
+  SnsTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      TopicName: !Sub "${AWS::StackName}"
+
+  EmailSubscription:
+    Type: "AWS::SNS::Subscription"
+    Condition: EmailSpecified
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref SnsTopic
+
+  # this is a WIP
+  CodePipelineEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: !Sub "${AWS::StackName} Build notifications"
+      EventPattern:
+        source:
+          - "aws.codepipeline"
+        detail-type:
+          - "CodePipeline Pipeline Execution State Change"
+          - "CodePipeline Action Execution State Change"
+          - "CodePipeline Stage Execution State Change"
+        detail:
+          state:
+            - "FAILED"
+          pipeline:
+            - Ref: Pipeline
+      State: ENABLED
+      Targets:
+        - Arn: !Ref SnsTopic
+          Id: !Sub "${AWS::StackName}"
+
+  Notification:
+    Type: AWS::CloudFormation::Stack
+    Condition: WebhookSpecified
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${BuildArtifactsBucket}/templates/notification.yaml
+      Parameters:
+        AppStackName: !Ref AppStackName
+        BuildArtifactsBucket: !Ref BuildArtifactsBucket
+        GitHubRepo: !Ref GitHubRepo
+        GitHubBranch: !Ref GitHubBranch
+        SlackWebhook: !Ref SlackWebhook
+        Project: !Ref Project
+        Owner: !Ref Owner
+        Pipeline: !Ref Pipeline
+        ReportsUrl: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"
+        PipelineUrl: !Join
+          - ''
+          - - 'https://console.aws.amazon.com/codepipeline/home?region='
+            - !Ref 'AWS::Region'
+            - '#/view/'
+            - !Ref Pipeline
+
 Outputs:
   PipelineUrl:
     Description: Pipeline Url
@@ -658,5 +566,5 @@ Outputs:
         - !Ref Pipeline
 
   ReportsUrl:
-    Description: Reports URL
+    Description: Build Reports URL
     Value: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"

@@ -13,6 +13,11 @@ const colorMap = {
   SUCCEEDED: 'good',
 }
 
+const emoticonMap = {
+  FAILED: ':skull:',
+  SUCCEEDED: ':success:',
+}
+
 function callbackToPromise(resolve, reject) {
   return function(error, data) {
     if (error) {
@@ -43,8 +48,8 @@ function getCommitInfo(event) {
 function generateStatusAttachment(event) {
   return getCommitInfo(event)
   .then(commitInfo => {
-    return {
-      title: `Build ${event.detail.state}`,
+    const returner = {
+      title: `Build ${event.detail.state} ${emoticonMap[event.detail.state]}`,
       color: `${colorMap[event.detail.state]}`,
       fields: [
         {
@@ -65,10 +70,22 @@ function generateStatusAttachment(event) {
         {
           title: 'Commit Message',
           value: commitInfo.commitMessage,
-          short: false
+          short: true
         }
       ]
     }
+    returner.fields.push({
+      title: 'Reports',
+      value: `<${process.env.REPORTS_URL}|Build Reports>`,
+      short: true
+    })
+    returner.fields.push({
+      title: 'Build Pipeline',
+      value: `<${process.env.PIPELINE_URL}|CodePipeline Console>`,
+      short: true
+    })
+
+    return returner;
   });
 }
 

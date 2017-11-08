@@ -296,7 +296,7 @@ update-db: upload-db
 update-environment: update-foundation update-compute update-db upload-app
 
 ## Update existing Build Pipeline CF Stack
-update-build: upload-build
+update-build: upload-build upload-lambdas
 	@echo "Updating ${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH} stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
                 --region ${REGION} \
@@ -526,10 +526,10 @@ upload-build:
 
 upload-lambdas:
 	@pwd=$(shell pwd)
-	@cd lambdas && zip handlers.zip *.js
+	@cd lambdas && zip ${OWNER}-${PROJECT}-handlers.zip *.js
 	@cd ${pwd}
-	@aws s3 cp lambdas/handlers.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.build/lambdas/
-	@rm lambdas/handlers.zip
+	@aws s3 cp lambdas/${OWNER}-${PROJECT}-handlers.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.build/lambdas/
+	@rm lambdas/${OWNER}-${PROJECT}-handlers.zip
 
 check-env:
 ifndef OWNER
