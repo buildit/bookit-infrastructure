@@ -1,0 +1,141 @@
+---
+
+Description: Deployment Pipeline
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  AppStackName:
+    Type: String
+
+  BuildArtifactsBucket:
+    Type: String
+
+  GitHubRepo:
+    Type: String
+
+  GitHubBranch:
+    Type: String
+    Default: "master"
+
+  SlackWebhook:
+    Type: String
+
+  Project:
+    Type: String
+
+  Owner:
+    Type: String
+
+  Pipeline:
+    Description: The pipeline for which notifications are generated.
+    Type: String
+
+  ReportsUrl:
+    Type: String
+
+  PipelineUrl:
+    Type: String
+
+Resources:
+  LambdaNotifcationExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: arn:aws:logs:*:*:*
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Resource: arn:aws:codepipeline:*
+                Effect: Allow
+                Action:
+                  - codepipeline:GetPipelineExecution
+
+  LambdaNotifications:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: BuildNotification.handler
+      Role:
+        !GetAtt LambdaNotifcationExecutionRole.Arn
+      Code:
+        S3Bucket: !Sub "${BuildArtifactsBucket}"
+        S3Key: !Sub lambdas/${AppStackName}-handlers.zip
+      Runtime: nodejs6.10
+      Timeout: 5
+      Environment:
+        Variables:
+          BRANCH: !Ref GitHubBranch
+          HOOK_URL: !Ref SlackWebhook
+          TARGET_STAGES: Staging;Production
+          REPO: !Ref GitHubRepo
+          PROJECT: !Ref Project
+          OWNER: !Ref Owner
+          REPORTS_URL: !Ref ReportsUrl
+          PIPELINE_URL: !Ref PipelineUrl
+
+  EventRuleBuildFailures:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-fail-rule"
+      Description: "Traps stage failures and notifies slack"
+      EventPattern:
+        source:
+          - "aws.codepipeline"
+        detail:
+          state:
+            - FAILED
+          pipeline:
+            - !Ref Pipeline
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt LambdaNotifications.Arn
+          Id: !Sub ${AppStackName}-${GitHubRepo}-${GitHubBranch}-tgt1
+
+  EventRuleBuildSuccesses:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: !Sub "${AppStackName}-${GitHubRepo}-${GitHubBranch}-build-pass-rule"
+      Description: "Traps stage successes and notifies slack"
+      EventPattern:
+        source:
+          - "aws.codepipeline"
+        detail:
+          state:
+            - SUCCEEDED
+          pipeline:
+            - !Ref Pipeline
+          stage:
+            - Staging
+            - Production
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt LambdaNotifications.Arn
+          Id: !Sub ${AppStackName}-${GitHubRepo}-${GitHubBranch}-tgt2
+
+  PermissionForFailEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaNotifications
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EventRuleBuildFailures.Arn
+
+  PermissionForPassEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaNotifications
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EventRuleBuildSuccesses.Arn

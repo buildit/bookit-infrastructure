@@ -44,30 +44,28 @@ Parameters:
     Description: The unique priority across applications sharing the ALB
     Type: Number
 
-  SlackChannel:
-    Description: Slack channel (no \#) to post to
+  SlackWebhook:
     Type: String
     Default: ""
 
   EmailAddress:
     Description: Email address to send build notifications to
     Type: String
-    Default: ""
+
+  Project:
+    Type: String
+
+  Owner:
+    Type: String
 
   SsmNamespacePrefix:
     Description: The prefix SSM namespace where the stack can find needed parameters
     Type: String
 
-
-  # CodeBuildProjectTestImage:
-  #   Description: The CodeBuild image to run the e2e tests in
-  #   Type: String
-
-# Conditions:
-#   ShouldCreateSns: !Not [ Equals [ !Ref SlackChannel, "" ] ]
-
 Conditions:
   EmailSpecified: !Not [ !Equals [ !Ref EmailAddress, "" ] ]
+
+  WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
 Mappings:
   EnvironmentDefaults:
@@ -83,14 +81,6 @@ Resources:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'ecr', 'repo' ] ]
-
-#  CodePipelineSNSTopic:
-#     Condition: ShouldCreateSns
-#     Type: AWS::SNS::Topic
-#     Properties:
-#       Subscription:
-#         - Endpoint: "https://hooks.slack.com/services/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"
-#           Protocol: https
 
   CloudFormationExecutionRole:
     Type: AWS::IAM::Role
@@ -214,41 +204,6 @@ Resources:
                   - iam:PassRole
                   - sns:Publish
 
-  SnsTopic:
-    Type: "AWS::SNS::Topic"
-    Properties:
-      TopicName: !Sub "${AWS::StackName}"
-
-  EmailSubscription:
-    Type: "AWS::SNS::Subscription"
-    Condition: EmailSpecified
-    Properties:
-      Endpoint: !Ref EmailAddress
-      Protocol: email
-      TopicArn: !Ref SnsTopic
-
-  # this is a WIP
-  CodePipelineEventRule:
-    Type: "AWS::Events::Rule"
-    Properties:
-      Description: !Sub "${AWS::StackName} Build notifications"
-      EventPattern:
-        source:
-          - "aws.codepipeline"
-        detail-type:
-          - "CodePipeline Pipeline Execution State Change"
-          - "CodePipeline Action Execution State Change"
-          - "CodePipeline Stage Execution State Change"
-        detail:
-          state:
-            - "FAILED"
-          pipeline:
-            - Ref: Pipeline
-      State: ENABLED
-      Targets:
-        - Arn: !Ref SnsTopic
-          Id: !Sub "${AWS::StackName}"
-
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -259,13 +214,8 @@ Resources:
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
         Image: "aws/codebuild/docker:1.12.1"
-        # Image: "aws/codebuild/java:openjdk-8"
-        # Image: "aws/codebuild/eb-java-8-amazonlinux-64:2.4.3"
-        # PrivilegedMode: true
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
-        #   - Name: AWS_REGION
-        #     Value: !Ref AWS::Region
           - Name: REPOSITORY_URI
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
@@ -287,15 +237,9 @@ Resources:
         BuildSpec: buildspec.e2e.yml
       Environment:
         ComputeType: "BUILD_GENERAL1_SMALL"
-        # Image: !Ref CodeBuildProjectTestImage
         Image: "aws/codebuild/docker:1.12.1"
-        # Image: "aws/codebuild/java:openjdk-8"
-        # Image: "aws/codebuild/eb-java-8-amazonlinux-64:2.4.3"
-        # PrivilegedMode: true
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
-        #   - Name: AWS_REGION
-        #     Value: !Ref AWS::Region
           - Name: ENDPOINT_URI
             Value: !Sub "https://${Prefix}integration-${ApplicationName}.${PublicDomainName}"
           - Name: REPOSITORY_URI
@@ -554,6 +498,63 @@ Resources:
                 - Name: ProductionEnvironment
               RunOrder: 3
 
+  SnsTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      TopicName: !Sub "${AWS::StackName}"
+
+  EmailSubscription:
+    Type: "AWS::SNS::Subscription"
+    Condition: EmailSpecified
+    Properties:
+      Endpoint: !Ref EmailAddress
+      Protocol: email
+      TopicArn: !Ref SnsTopic
+
+  # this is a WIP
+  CodePipelineEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: !Sub "${AWS::StackName} Build notifications"
+      EventPattern:
+        source:
+          - "aws.codepipeline"
+        detail-type:
+          - "CodePipeline Pipeline Execution State Change"
+          - "CodePipeline Action Execution State Change"
+          - "CodePipeline Stage Execution State Change"
+        detail:
+          state:
+            - "FAILED"
+          pipeline:
+            - Ref: Pipeline
+      State: ENABLED
+      Targets:
+        - Arn: !Ref SnsTopic
+          Id: !Sub "${AWS::StackName}"
+
+  Notification:
+    Type: AWS::CloudFormation::Stack
+    Condition: WebhookSpecified
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/${BuildArtifactsBucket}/templates/notification.yaml
+      Parameters:
+        AppStackName: !Ref AppStackName
+        BuildArtifactsBucket: !Ref BuildArtifactsBucket
+        GitHubRepo: !Ref GitHubRepo
+        GitHubBranch: !Ref GitHubBranch
+        SlackWebhook: !Ref SlackWebhook
+        Project: !Ref Project
+        Owner: !Ref Owner
+        Pipeline: !Ref Pipeline
+        ReportsUrl: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"
+        PipelineUrl: !Join
+          - ''
+          - - 'https://console.aws.amazon.com/codepipeline/home?region='
+            - !Ref 'AWS::Region'
+            - '#/view/'
+            - !Ref Pipeline
+
 Outputs:
   PipelineUrl:
     Description: Pipeline Url
@@ -565,5 +566,5 @@ Outputs:
         - !Ref Pipeline
 
   ReportsUrl:
-    Description: Reports URL
+    Description: Build Reports URL
     Value: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"
