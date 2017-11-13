@@ -187,7 +187,6 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
-			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 			"ParameterKey=SsmNamespacePrefix,ParameterValue=/${OWNER}/${PROJECT}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
@@ -314,7 +313,6 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
-			"ParameterKey=EmailAddress,ParameterValue=${EMAIL_ADDRESS}" \
 			"ParameterKey=SsmNamespacePrefix,ParameterValue=/${OWNER}/${PROJECT}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
 			"ParameterKey=Project,ParameterValue=${PROJECT}" \
