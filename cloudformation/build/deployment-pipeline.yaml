@@ -48,10 +48,6 @@ Parameters:
     Type: String
     Default: ""
 
-  EmailAddress:
-    Description: Email address to send build notifications to
-    Type: String
-
   Project:
     Type: String
 
@@ -63,8 +59,6 @@ Parameters:
     Type: String
 
 Conditions:
-  EmailSpecified: !Not [ !Equals [ !Ref EmailAddress, "" ] ]
-
   WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
 Mappings:
@@ -466,20 +460,6 @@ Resources:
                 Owner: AWS
                 Provider: Manual
                 Version: '1'
-        #       Configuration:
-        #         NotificationArn: !Ref CodePipelineSNSTopic
-        #         CustomData: !Sub |
-        #           {
-        #             "icon_emjoi": ":tada:",
-        #             "username": "AWS CodePipeline Overlord",
-        #             "channel": "${SlackChannel}",
-        #             "fallback": "",
-        #             "color":
-        # "Build Failed - Staging - Branch: ${env.BRANCH_NAME}",
-        # "(<${env.BUILD_URL}|Failed Job>) Commit '<${gitUrl}/commits/${shortCommitHash}|${shortCommitHash}>' failed.\n\n${commitMessage}",
-        # "danger",
-        #             ""'A new change set was created for the ${AppStackName}-production-app-${GitHubRepo}-${GitHubBranch} stack. Do you want to implement the changes?'
-        #           }
               RunOrder: 2
             - Name: ExecuteChangeSet
               ActionTypeId:
@@ -497,41 +477,6 @@ Resources:
               OutputArtifacts:
                 - Name: ProductionEnvironment
               RunOrder: 3
-
-  SnsTopic:
-    Type: "AWS::SNS::Topic"
-    Properties:
-      TopicName: !Sub "${AWS::StackName}"
-
-  EmailSubscription:
-    Type: "AWS::SNS::Subscription"
-    Condition: EmailSpecified
-    Properties:
-      Endpoint: !Ref EmailAddress
-      Protocol: email
-      TopicArn: !Ref SnsTopic
-
-  # this is a WIP
-  CodePipelineEventRule:
-    Type: "AWS::Events::Rule"
-    Properties:
-      Description: !Sub "${AWS::StackName} Build notifications"
-      EventPattern:
-        source:
-          - "aws.codepipeline"
-        detail-type:
-          - "CodePipeline Pipeline Execution State Change"
-          - "CodePipeline Action Execution State Change"
-          - "CodePipeline Stage Execution State Change"
-        detail:
-          state:
-            - "FAILED"
-          pipeline:
-            - Ref: Pipeline
-      State: ENABLED
-      Targets:
-        - Arn: !Ref SnsTopic
-          Id: !Sub "${AWS::StackName}"
 
   Notification:
     Type: AWS::CloudFormation::Stack
