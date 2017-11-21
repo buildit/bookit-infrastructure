@@ -74,4 +74,4 @@ Outputs:
   BastionSshCommand:
     Export:
       Name: !Sub "${AWS::StackName}--Bastion--DNS"
-    Value: !Sub "ssh -i ~/.ssh/${SshKeyName} ec2-user@${BastionInstance.PublicDnsName}"
+    Value: !Sub "ssh -i ~/.ssh/${SshKeyName}.pem ec2-user@${BastionInstance.PublicDnsName}"
