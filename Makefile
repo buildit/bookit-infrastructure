@@ -80,16 +80,22 @@ create-deps:
 		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
 		[ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (integration)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
+	@read -p 'Bookit Admin User Password: (<ENTER> will keep existing) ' BOOKIT_ADMIN_PASSWORD; \
+		[ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (integration)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
 	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/staging"
 	@read -p 'Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
 		[ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (staging)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
+	@read -p 'Bookit Admin User Password: (<ENTER> will keep existing) ' BOOKIT_ADMIN_PASSWORD; \
+		[ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (integration)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
 	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/production"
 	@read -p 'Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 		[ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@read -p 'Bookit Database User Password: (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
 		[ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (production)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
+	@read -p 'Bookit Admin User Password: (<ENTER> will keep existing) ' BOOKIT_ADMIN_PASSWORD; \
+		[ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (integration)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
 
 update-deps: create-deps
 
@@ -102,7 +108,10 @@ delete-deps:
 		"/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" \
 		"/${OWNER}/${PROJECT}/env/integration/BOOKIT_DATABASE_PASSWORD" \
 		"/${OWNER}/${PROJECT}/env/staging/BOOKIT_DATABASE_PASSWORD" \
-		"/${OWNER}/${PROJECT}/env/production/BOOKIT_DATABASE_PASSWORD"
+		"/${OWNER}/${PROJECT}/env/production/BOOKIT_DATABASE_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/integration/BOOKIT_ADMIN_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/staging/BOOKIT_ADMIN_PASSWORD" \
+		"/${OWNER}/${PROJECT}/env/production/BOOKIT_ADMIN_PASSWORD"
 
 ## Creates Foundation and Build
 
