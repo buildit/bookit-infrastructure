@@ -29,8 +29,8 @@ echo
 
 if [[ $REPLY =~ ^[Yy]$ ]]
 then
-  deleteAppsAndBuild bookit-client-react
-  deleteAppsAndBuild bookit-api
+#  deleteAppsAndBuild bookit-client-react
+#  deleteAppsAndBuild bookit-api
   deleteEnvironment integration
   deleteEnvironment staging
   deleteEnvironment production

@@ -10,6 +10,7 @@ export PREFIX ?= ${OWNER}
 export REPO_BRANCH ?= master
 export DOMAIN_CERT ?= ""
 export DATABASE_NAME ?= ${PROJECT}
+export COMPUTE_TYPE ?= ${COMPUTE_TYPE}
 
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
@@ -142,7 +143,7 @@ create-compute: create-compute-deps upload-compute
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
                 --disable-rollback \
-		--template-body "file://cloudformation/compute-ecs/main.yaml" \
+		--template-body "file://cloudformation/compute-ecs/${COMPUTE_TYPE}.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
@@ -222,6 +223,7 @@ create-app: create-app-deps upload-app
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
+			"ParameterKey=ComputeTarget,ParameterValue=EC2" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \
@@ -271,7 +273,7 @@ update-compute: upload-compute
 	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-compute-ecs stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
-		--template-body "file://cloudformation/compute-ecs/main.yaml" \
+		--template-body "file://cloudformation/compute-ecs/${COMPUTE_TYPE}.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
@@ -347,6 +349,7 @@ update-app: upload-app
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
+			"ParameterKey=ComputeTarget,ParameterValue=EC2" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
 			"Key=Owner,Value=${OWNER}" \

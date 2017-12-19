@@ -195,10 +195,11 @@ the future via CloudFormation.
 
 ### Updating ECS AMIs
 
-The ECS cluster runs Amazon-supplied AMIs.  The AMIs are captured in a map in the `compute-ecs/main.yaml`
-template.  Occasionally, Amazon releases newer AMIs and marks existing instances as out-of-date in the
-ECS console.  To update to the latest set of AMIs, run the `./cloudformation/scripts/ecs-optimized-ami.sh`
-script and copy the results into the `compute-ecs/main.yaml` template's `AWSRegionToAMI` mapping.
+If your riglet instance is using the "ec2" compute type, the ECS cluster runs Amazon-supplied AMIs.  The AMIs are 
+captured in a map in the `compute-ecs/ec2.yaml` template.  Occasionally, Amazon releases newer AMIs and marks 
+existing instances as out-of-date in the ECS console.  To update to the latest set of AMIs, run the 
+`./cloudformation/scripts/ecs-optimized-ami.sh` script and copy the results into the `compute-ecs/ec2.yaml` 
+template's `AWSRegionToAMI` mapping.
 
 ## Logs
 

@@ -58,6 +58,13 @@ Parameters:
     Description: The prefix SSM namespace where the stack can find needed parameters
     Type: String
 
+  ComputeTarget:
+    Type: String
+    Default: classic
+    AllowedValues:
+      - EC2
+      - FARGATE
+
 Conditions:
   WebhookSpecified: !Not [ !Equals [ !Ref SlackWebhook, "" ] ]
 
@@ -357,6 +364,7 @@ Resources:
                       "ContainerPort": "${ContainerPort}",
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
+                      "ComputeTarget": "${ComputeTarget}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/integration",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
@@ -407,6 +415,7 @@ Resources:
                       "ContainerPort": "${ContainerPort}",
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
+                      "ComputeTarget": "${ComputeTarget}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/staging",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
@@ -450,6 +459,7 @@ Resources:
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
                       "ListenerRulePriority": "${ListenerRulePriority}",
                       "SsmEnvironmentNamespace": "${SsmNamespacePrefix}/env/production",
+                      "ComputeTarget": "${ComputeTarget}",
                       "Tag": { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] }
                     }
                   - EnvironmentTaskDesiredCount: !FindInMap [ EnvironmentDefaults, production, DesiredTasks ]

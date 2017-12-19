@@ -1,0 +1,23 @@
+---
+
+Description: ECS Cluster
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  FoundationStackName:
+    Description: Foundation stack name upon which this cluster is installed.
+    Type: String
+
+
+Resources:
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${AWS::StackName}-ECSCluster
+
+
+Outputs:
+  ClusterName:
+    Export:
+      Name: !Sub "${AWS::StackName}--Cluster"
+    Value: !Ref Cluster
