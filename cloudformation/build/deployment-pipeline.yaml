@@ -203,6 +203,7 @@ Resources:
     Properties:
       Artifacts:
         Type: "CODEPIPELINE"
+      BadgeEnabled: true
       Source:
         Type: "CODEPIPELINE"
       Environment:
@@ -226,6 +227,7 @@ Resources:
     Properties:
       Artifacts:
         Type: "CODEPIPELINE"
+      BadgeEnabled: true
       Source:
         Type: "CODEPIPELINE"
         BuildSpec: buildspec.e2e.yml
