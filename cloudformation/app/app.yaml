@@ -374,9 +374,11 @@ Resources:
             - Name: BOOKIT_DATABASE_USER
               Value: admin
             - Name: BOOKIT_DATABASE_URL
-              Value: "jdbc:mysql:aurora://aurora.bookit.internal/bookit"
-            - Name: BOOKIT_DATABASE_DRIVER
-              Value: org.mariadb.jdbc.Driver
+              Value: "jdbc:mariadb:aurora://aurora.bookit.internal/bookit"
+            - Name: BOOKIT_DATABASE_DIALECT
+              Value: org.hibernate.dialect.MySQL55Dialect
+            # - Name: BOOKIT_DATABASE_DRIVER
+            #   Value: org.mariadb.jdbc.Driver
             # - Name: USE_AZURE
             #   Value: true
             # - Name: ACTUAL_BOOKIT_API_URL  # This is the actual/true HTTP URL of the running service (DNS Name-based).
