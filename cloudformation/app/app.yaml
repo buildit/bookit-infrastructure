@@ -62,6 +62,15 @@ Conditions:
     - !Equals [ !Ref Prefix, "" ]
   ShouldCreateErrorLogAlarm: !Not [ !Equals [ !Ref Environment, integration ] ]
 
+Mappings:
+  EnvironmentMap:
+    integration:
+      BookitDatabaseDdlAuto: create
+    staging:
+      BookitDatabaseDdlAuto: update
+    production:
+      BookitDatabaseDdlAuto: update
+
 Resources:
   # LoadBalancer:
   #   Type: AWS::CloudFormation::Stack
@@ -377,6 +386,8 @@ Resources:
               Value: "jdbc:mariadb:aurora://aurora.bookit.internal/bookit"
             - Name: BOOKIT_DATABASE_DIALECT
               Value: org.hibernate.dialect.MySQL55Dialect
+            - Name: BOOKIT_DATABASE_DDL_AUTO
+              Value: !FindInMap [ EnvironmentMap, !Ref Environment, BookitDatabaseDdlAuto ]
             # - Name: BOOKIT_DATABASE_DRIVER
             #   Value: org.mariadb.jdbc.Driver
             # - Name: USE_AZURE
