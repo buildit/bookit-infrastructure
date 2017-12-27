@@ -76,13 +76,14 @@ In this case there's no real "build environment", unless you want to consider AW
 We are using CodePipeline and CodeBuild, which are build _managed services_ run by Amazon (think Jenkins in 
 the cloud, sort-of).  So what we're doing in this step is creating the build pipeline(s) for our code repo(s).
 
-* Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
+* Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> CONTAINER_MEMORY=<MiB> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
   * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
   * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
+  * CONTAINER_MEMORY is the amount of memory (in MiB) to reserve for this application (e.g. 512).
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
   * (optional) REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
   * (optional) PREFIX is what goes in front of the URI of the application.  Defaults to OWNER but for the "real" riglet should be set to blank (e.g. `PREFIX=`)
-  * (optional) SLACK_WEBHOOK is a slack URL to which build notifications are sent.  
+  * (optional) SLACK_WEBHOOK is a slack URL to which build notifications are sent.
     > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks! 
 
 ###### Deployed Applications
@@ -120,28 +121,28 @@ to communicate with each other, thus no peering is needed and CIDR overlaps are 
 
 Obviously, the templates can be updated if necessary.
 
-| Environment    | CidrBlock      | Public Subnets (Multi AZ) | Private Subnets (Multi AZ)
-| :------------- | :------------- | :-------------            | :-------------
-| integration    | 10.1.0.0/16    | 10.1.1.0/24,10.1.2.0/24   | 10.1.11.0/24,10.1.12.0/24
-| staging        | 10.2.0.0/16    | 10.2.1.0/24,10.2.2.0/24   | 10.2.11.0/24,10.2.12.0/24
-| production     | 10.3.0.0/16    | 10.3.1.0/24,10.3.2.0/24   | 10.3.11.0/24,10.3.12.0/24
+| Environment    | CidrBlock      | Public Subnets (Multi AZ) | Private Subnets (Multi AZ) |
+| :------------- | :------------- | :-------------            | :-------------             |
+| integration    | 10.1.0.0/16    | 10.1.1.0/24,10.1.2.0/24   | 10.1.11.0/24,10.1.12.0/24  |
+| staging        | 10.2.0.0/16    | 10.2.1.0/24,10.2.2.0/24   | 10.2.11.0/24,10.2.12.0/24  |
+| production     | 10.3.0.0/16    | 10.3.1.0/24,10.3.2.0/24   | 10.3.11.0/24,10.3.12.0/24  |
 
 ## Database specifics
 
 We're currently using AWS RDS Aurora MySQL 5.6.x
 
-| Environment    | DB URI (internal to VPC)              | DB Subnets (Private, MultiAZ) 
-| :------------- | :-------------                        | :-------------  
-| integration    | mysql://aurora.bookit.internal/bookit | 10.1.100.0/24,10.1.110.0/24 
-| staging        | mysql://aurora.bookit.internal/bookit | 10.2.100.0/24,10.2.110.0/24 
-| production     | mysql://aurora.bookit.internal/bookit | 10.3.100.0/24,10.3.110.0/24 
+| Environment    | DB URI (internal to VPC)              | DB Subnets (Private, MultiAZ) |
+| :------------- | :-------------                        | :-------------                |
+| integration    | mysql://aurora.bookit.internal/bookit | 10.1.100.0/24,10.1.110.0/24   |
+| staging        | mysql://aurora.bookit.internal/bookit | 10.2.100.0/24,10.2.110.0/24   |
+| production     | mysql://aurora.bookit.internal/bookit | 10.3.100.0/24,10.3.110.0/24   |
 
 ## Application specifics
 
-| Application         | ContainerPort  | ListenerRulePriority
-| :-------------      | :------------- | :------------- 
-| bookit-api          | 8080           | 100  
-| bookit-client-react | 4200           | 200  
+| Application         | ContainerPort  | ContainerMemory | ListenerRulePriority |
+| :-------------      | :------------- | :-------------- | :-------------       |
+| bookit-api          | 8080           | 512             | 100                  |
+| bookit-client-react | 4200           | 128             | 200                  |
 
 ## Scaling
 
@@ -166,20 +167,20 @@ before proceeding, or consider using a Change Set.
 
 ### Application Scaling Parameters
 
-| Parameter                    | Scaling Style | Stack                      | Parameter
-| :---                         | :---          | :---                       | :---
+| Parameter                    | Scaling Style | Stack                      | Parameter                  |
+| :---                         | :---          | :---                       | :---                       |
 | # of ECS cluster instances   | Horizontal    | compute-ecs                | ClusterSize/ClusterMaxSize |
-| Size of ECS Hosts            | Vertical      | compute-ecs                | InstanceType    |
-| Number of Tasks              | Horizontal    | app (once created by build)| TaskDesiredCount |
+| Size of ECS Hosts            | Vertical      | compute-ecs                | InstanceType               |
+| Number of Tasks              | Horizontal    | app (once created by build)| TaskDesiredCount           |
 
 ### Database Scaling Parameters
 
 And here are the available *database* scaling parameters.
 
-| Parameter             | Scaling Style | Stack         | Parameter
-| :---                  | :---          | :---          | :---
-| Size of RDS Instances | Vertical      | db-aurora     | InstanceType 
-| # of RDS Instances    | Vertical      | db-aurora     | _currently via Replication property in Mappings inside db-aurora/main.yaml_ 
+| Parameter             | Scaling Style | Stack         | Parameter                                                                   |
+| :---                  | :---          | :---          | :---                                                                        |
+| Size of RDS Instances | Vertical      | db-aurora     | InstanceType                                                                |
+| # of RDS Instances    | Vertical      | db-aurora     | _currently via Replication property in Mappings inside db-aurora/main.yaml_ |
 
 ## Maintenance
 

@@ -195,6 +195,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
+			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=SsmNamespacePrefix,ParameterValue=/${OWNER}/${PROJECT}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
@@ -221,6 +222,7 @@ create-app: create-app-deps upload-app
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
+			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
@@ -321,6 +323,7 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
+			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 			"ParameterKey=SsmNamespacePrefix,ParameterValue=/${OWNER}/${PROJECT}" \
 			"ParameterKey=SlackWebhook,ParameterValue=${SLACK_WEBHOOK}" \
@@ -346,6 +349,7 @@ update-app: upload-app
 			"ParameterKey=Repository,ParameterValue=${OWNER}-${PROJECT}-${REPO}-${REPO_BRANCH}-ecr-repo" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
+			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
 		--tags \
 			"Key=Environment,Value=${ENV}" \
