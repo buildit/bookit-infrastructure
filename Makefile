@@ -147,7 +147,6 @@ create-compute: create-compute-deps upload-compute
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
-			"ParameterKey=InstanceType,ParameterValue=t2.small" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -164,7 +163,6 @@ create-db: create-db-deps upload-db
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
-			"ParameterKey=InstanceType,ParameterValue=db.t2.small" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
@@ -278,7 +276,6 @@ update-compute: upload-compute
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
-			"ParameterKey=InstanceType,ParameterValue=t2.small" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
@@ -293,7 +290,6 @@ update-db: upload-db
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
-			"ParameterKey=InstanceType,ParameterValue=db.t2.small" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
