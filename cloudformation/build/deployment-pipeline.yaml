@@ -204,6 +204,9 @@ Resources:
       Artifacts:
         Type: "CODEPIPELINE"
       BadgeEnabled: true
+      Cache:
+        Location: !Sub "${BuildArtifactsBucket}/${AWS::StackName}/cache"
+        Type: S3
       Source:
         Type: "CODEPIPELINE"
       Environment:
@@ -228,6 +231,9 @@ Resources:
       Artifacts:
         Type: "CODEPIPELINE"
       BadgeEnabled: true
+      Cache:
+        Location: !Sub "${BuildArtifactsBucket}/${AWS::StackName}/cache"
+        Type: S3
       Source:
         Type: "CODEPIPELINE"
         BuildSpec: buildspec.e2e.yml
