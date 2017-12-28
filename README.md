@@ -2,6 +2,20 @@
 
 This setup will create a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.
 
+## The big picture(s)
+
+The whole shebang:
+
+![alt text](https://raw.githubusercontent.com/buildit/bookit-infrastructure/master/docs/architecture/diagrams/bookit-infrastructure.png)
+
+Single Environment (more detail):
+
+![alt text](https://raw.githubusercontent.com/buildit/bookit-infrastructure/master/docs/architecture/diagrams/aws-bare-foundation.png)
+
+CodePipeline (more detail):
+
+![Code Pipeline](https://raw.githubusercontent.com/buildit/bookit-infrastructure/master/docs/architecture/diagrams/bookit-riglet-aws-hi-level.png)
+
 ## Setup
 
 ### Dependencies
