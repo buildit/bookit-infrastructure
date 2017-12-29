@@ -205,6 +205,21 @@ And here are the available *database* scaling parameters.
 | Size of RDS Instances | Vertical      | db-aurora     | InstanceType                                                                |
 | # of RDS Instances    | Vertical      | db-aurora     | _currently via Replication property in Mappings inside db-aurora/main.yaml_ |
 
+## Troubleshooting
+
+There are a number of strategies to troubleshoot issues.  In addition to monitoring and searching the AWS Console and Cloudwatch Logs, you can SSH into the VPC via a Bastion:
+
+`make create-bastion ENV=<integration|staging|production>`
+
+This will create a bastion that you can SSH into as well as open an inbound Security Group rule to allow your IP address in.  You can output the SSH command via:
+
+`make outputs-bastion ENV<integration|staging|production>`
+
+Once inside the VPC, you can connect to any of the services you need.
+
+Don't forget to tear down the Bastion when you are finished:
+`make delete-bastion ENV=<integration|staging|production>`
+
 ## Maintenance
 
 Except in very unlikely and unusual circumstances _all infrastructure/build changes should be made via CloudFormation
