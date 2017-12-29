@@ -316,6 +316,9 @@ Resources:
       Role: !Ref ECSServiceRole
       DesiredCount: !Ref TaskDesiredCount
       TaskDefinition: !Ref TaskDefinition
+      PlacementStrategies:
+        - Type: spread
+          Field: host
       LoadBalancers:
         - ContainerName: !Ref ApplicationName
           ContainerPort: !Ref ContainerPort

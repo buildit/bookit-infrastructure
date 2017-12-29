@@ -4,13 +4,13 @@ Description: ECS Cluster
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
+  Environment:
+    Description: Stack environment
+    Type: String
+
   FoundationStackName:
     Description: Foundation stack name upon which this cluster is installed.
     Type: String
-
-  ClusterSize:
-    Type: Number
-    Default: 1
 
   ClusterMaxSize:
     Type: Number
@@ -27,7 +27,6 @@ Parameters:
 
   SshKeyName:
     Type: AWS::EC2::KeyPair::KeyName
-
 
 Mappings:
   AWSRegionToAMI:
@@ -55,6 +54,13 @@ Mappings:
       AMI: ami-1bdc8b78
     ca-central-1:
       AMI: ami-918b30f5
+  EnvironmentMap:
+    integration:
+      ClusterSize: 1
+    staging:
+      ClusterSize: 2
+    production:
+      ClusterSize: 2
 
 Resources:
   ECSRole:
@@ -102,9 +108,9 @@ Resources:
         - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateA"
         - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateB"
       LaunchConfigurationName: !Ref LaunchConfiguration
-      MinSize: !Ref ClusterSize
+      MinSize: !FindInMap [ EnvironmentMap, !Ref Environment, ClusterSize ]
       MaxSize: !Ref ClusterMaxSize
-      DesiredCapacity: !Ref ClusterSize
+      DesiredCapacity: !FindInMap [ EnvironmentMap, !Ref Environment, ClusterSize ]
       Tags:
         - Key: Name
           Value: !Sub ${FoundationStackName}--ECSHost

@@ -145,6 +145,7 @@ create-compute: create-compute-deps upload-compute
 		--template-body "file://cloudformation/compute-ecs/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
+			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
@@ -274,6 +275,7 @@ update-compute: upload-compute
 		--template-body "file://cloudformation/compute-ecs/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
+			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 		--tags \
