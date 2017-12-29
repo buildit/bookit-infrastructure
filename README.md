@@ -16,6 +16,10 @@ CodePipeline (more detail):
 
 ![Code Pipeline](https://raw.githubusercontent.com/buildit/bookit-infrastructure/master/docs/architecture/diagrams/bookit-riglet-aws-hi-level.png)
 
+## Architectural Decisions
+
+We are documenting our decisions [here](../master/docs/architecture/decisions)
+
 ## Setup
 
 ### Dependencies
@@ -36,7 +40,10 @@ PROFILE = <AWS Profile Name>
 PROJECT = <Project Name>
 REGION = <AWS Region>
 DOMAIN_CERT = <AWS Certificate Manager GUID>
+REPO_TOKEN = <OAuth token to access your github repo>
+PREFIX = <optional> defaults to owner
 EMAIL_ADDRESS = <optional> email address for potential notifications.
+SLACK_WEBHOOK = <optional> webhook address to post build notifications to
 ```
 
 Or also done interactively through `make .make`.
@@ -53,6 +60,8 @@ REGION = us-east-1
 DOMAIN_CERT = 0663e927-e990-4157-aef9-7dea87faa6ec
 PREFIX =
 EMAIL_ADDRESS = u9o1x0a2t4y0g0k1@wiprodigital.slack.com
+SLACK_WEBHOOK = https://hooks.slack.com/services/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$
+REPO_TOKEN = <ask a teammate>
 ```
 
 Confirm everything is valid with `make check-env`
@@ -220,7 +229,3 @@ script and copy the results into the `compute-ecs/main.yaml` template's `AWSRegi
 We are using CloudWatch for centralized logging.  You can find the logs for each environment and application at [here](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logs:prefix=buildit)
 
 Alarms are generated when ERROR level logs occur.  They currently get sent to the #book-it-notifications channel
-
-## Architectural Decisions
-
-We are documenting our decisions [here](../master/docs/architecture/decisions)
