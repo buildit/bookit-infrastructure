@@ -92,7 +92,7 @@ Resources:
       Port: 80
       Protocol: HTTP
       Matcher:
-        HttpCode: 200-299
+        HttpCode: 200-399
       HealthCheckIntervalSeconds: 10
       HealthCheckPath: /
       HealthCheckProtocol: HTTP
@@ -395,6 +395,8 @@ Resources:
               Value: org.hibernate.dialect.MySQL55Dialect
             - Name: BOOKIT_DATABASE_DDL_AUTO
               Value: !FindInMap [ EnvironmentMap, !Ref Environment, BookitDatabaseDdlAuto ]
+            - Name: BOOKIT_REQUIRE_SSL
+              Value: true
             # - Name: BOOKIT_DATABASE_DRIVER
             #   Value: org.mariadb.jdbc.Driver
             # - Name: USE_AZURE
