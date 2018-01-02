@@ -4,6 +4,47 @@ This setup will create a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy p
 
 ## The big picture(s)
 
+Bookit was rebooted in Sept 2017, and we decided to start from scratch.  We did decide to use the Bookit Riglet (implementation of Bare Metal Rig) as a starting point however.
+
+This guide has all the steps for creating a "Bookit riglet instance".  The riglet is capable of doing builds, pushing to docker and deploying the docker images using blue/green deployment.  The major components of this riglet are:
+
+* A "foundational" stack running in Amazon:  1 of these is created for each environment (integration, staging, production, etc)
+  * a VPC with the appropriate network elements (gateways, NAT)
+  * a shared Application Load Balancer (ALB) - listens on ports 80 & 443
+  * a shared EC2 Container Server (ECS) Cluster.
+  * an RDS Aurora Database
+  * 4 shared S3 buckets to store CloudFormation templates and scripts
+    * a "foundation" bucket to store templates associated w/ the foundational stack
+    * a "build" bucket to store build artifacts for the CodePipeline below (this is shared across all pipelines)
+    * an "app" bucket to store templates associated w/ the app stack below
+    * a "build-support" bucket to store shared scripts that the CodeBuild and CodePipeline might use (not currently used... holdover from original bookit-riglet for now)
+* A "deployment-pipeline" stack: 1 stack per branch per repo
+  * an ECS Repository (ECR)
+  * a CodeBuild build - see buildspec.yml in the project
+    * Installs dependencies (JDK, Node, etc)
+    * Executes build (download libraries, build, test, lint, package docker image)
+    * Pushes the image to the ECR
+  * a CodePipeline pipeline that executes the following:
+    * Polls for changes to the branch & "app" S3 buckets
+    * Executes the CodeBuild
+    * Creates/Updates the "app" stack below for the integration environment
+      * This also deploys the built image to the ECS cluster
+    * Creates/Updates the "app" stack below for the staging environment
+    * Creates/Updates an "app" stack change set for the production environment
+    * Waits for review/approval
+    * Executes the "app" stack change set which creates/updates/deploys for the production environment
+  * IAM roles to make it all work
+* An "app" stack: 1 stack per branch per repo per environment - requires "foundation" stack to already exist and ECR repository with built images
+  * a ALB target group
+  * 2 ALB listener rules (http & https) that route to the target group based on the HOST header
+  * a Route53 DNS entry pointing to the ALB
+  * (optionally) a Route53 DNS entry without the environment name (for production)
+  * an ECS Service which ties the Target Group to the Task Definition
+  * an ECS Task Definition which runs the specific tag Docker image
+  * IAM roles to make it all work
+
+The all infrastructure are set up and maintained using AWS CloudFormation.  CodeBuild is configured simply by updating the buildspec.yml file in each bookit project.
+
 The whole shebang:
 
 ![alt text](https://raw.githubusercontent.com/buildit/bookit-infrastructure/master/docs/architecture/diagrams/bookit-infrastructure.png)
@@ -21,6 +62,17 @@ CodePipeline (more detail):
 We are documenting our decisions [here](../master/docs/architecture/decisions)
 
 ## Setup
+
+### Assumptions
+
+Those executing these instructions must have basic-to-intermediate knowledge of the following:
+
+* *nix command-line and utilities such as 'curl'
+* *nix package installation
+* AWS console navigation (there's a lot of it)
+* AWS CLI (there's some of it)
+* AWS services (CloudFormation, EC2, ECS, S3).
+* It is especially important to have some understanding of the ECS service.  It might be a good idea to run through an ECS tutorial before setting up this riglet.
 
 ### Dependencies
 
