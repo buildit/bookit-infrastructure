@@ -214,10 +214,10 @@ We're currently using AWS RDS Aurora MySQL 5.6.x
 
 ## Application specifics
 
-| Application         | ContainerPort  | ContainerMemory | ListenerRulePriority |
-| :-------------      | :------------- | :-------------- | :-------------       |
-| bookit-api          | 8080           | 512             | 100                  |
-| bookit-client-react | 4200           | 128             | 200                  |
+| Application         | ContainerPort  | ContainerMemory | ListenerRulePriority                  |
+| :-------------      | :------------- | :-------------- | :-------------                        |
+| bookit-api          | 8080           | 512             | 300                                   |
+| bookit-client-react | 4200           | 128             | 200 (lower makes it the ALB fallback) |
 
 ## Scaling
 

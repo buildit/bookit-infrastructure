@@ -189,6 +189,36 @@ Resources:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
+  FallbackListenerRuleHttp:
+    Condition: ShouldCreatePreferredCname
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn:
+        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpListener"
+      Priority: !Sub "${ListenerRulePriority}99"
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub "*.${PublicDomainName}"
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+
+  FallbackListenerRuleHttps:
+    Condition: ShouldCreatePreferredCname
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn:
+        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpsListener"
+      Priority: !Sub "${ListenerRulePriority}99"
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Sub "*.${PublicDomainName}"
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+
   ExternalHealthCheck:
     Type: AWS::Route53::HealthCheck
     Properties:

@@ -22,6 +22,6 @@ then
   createEnvironment integration && \
   createEnvironment staging && \
   createEnvironment production && \
-  echo "Y" | make create-build REPO=bookit-api CONTAINER_PORT=8080 CONTAINER_MEMORY=512 LISTENER_RULE_PRIORITY=100 && \
+  echo "Y" | make create-build REPO=bookit-api CONTAINER_PORT=8080 CONTAINER_MEMORY=512 LISTENER_RULE_PRIORITY=300 && \
   echo "Y" | make create-build REPO=bookit-client-react CONTAINER_PORT=4200 CONTAINER_MEMORY=128 LISTENER_RULE_PRIORITY=200
 fi
