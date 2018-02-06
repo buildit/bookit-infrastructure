@@ -347,7 +347,7 @@ Resources:
       DesiredCount: !Ref TaskDesiredCount
       DeploymentConfiguration:
         MinimumHealthyPercent: 50
-        MaximumPercent: 150
+        MaximumPercent: 100
       TaskDefinition: !Ref TaskDefinition
       PlacementStrategies:
         - Type: spread
