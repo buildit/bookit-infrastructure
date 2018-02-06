@@ -345,6 +345,9 @@ Resources:
         Fn::ImportValue: !Sub "${ComputeStackName}--Cluster"
       Role: !Ref ECSServiceRole
       DesiredCount: !Ref TaskDesiredCount
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 50
+        MaximumPercent: 150
       TaskDefinition: !Ref TaskDefinition
       PlacementStrategies:
         - Type: spread
