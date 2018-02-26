@@ -2,3 +2,4 @@
 /.terraform
 /.*_ami_id
 /created-user-out-credentials.json
+\.vscode/database\.json
