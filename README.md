@@ -265,7 +265,7 @@ There are a number of strategies to troubleshoot issues.  In addition to monitor
 
 This will create a bastion that you can SSH into as well as open an inbound Security Group rule to allow your IP address in.  You can output the SSH command via:
 
-`make outputs-bastion ENV<integration|staging|production>`
+`make outputs-bastion ENV=<integration|staging|production>`
 
 Once inside the VPC, you can connect to any of the services you need.
 
