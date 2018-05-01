@@ -161,7 +161,6 @@ create-compute: create-compute-deps upload-compute
 ## Create new CF db stack
 create-db: create-db-deps upload-db
 	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"	
-	@echo \"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
                 --region ${REGION} \
                 --disable-rollback \
