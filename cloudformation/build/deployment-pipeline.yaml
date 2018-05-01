@@ -207,7 +207,7 @@ Resources:
     Properties:
       Artifacts:
         Type: "CODEPIPELINE"
-      BadgeEnabled: true
+      # BadgeEnabled: true
       Cache:
         Location: !Sub "${BuildArtifactsBucket}/${AWS::StackName}/cache"
         Type: S3
@@ -234,7 +234,7 @@ Resources:
     Properties:
       Artifacts:
         Type: "CODEPIPELINE"
-      BadgeEnabled: true
+      # BadgeEnabled: true
       Cache:
         Location: !Sub "${BuildArtifactsBucket}/${AWS::StackName}/cache"
         Type: S3

@@ -19,6 +19,7 @@ create-foundation-deps:
 	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}"  2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}  --region "${REGION}" # Foundation configs
+	sleep 10
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
 delete-foundation-deps:
@@ -30,6 +31,7 @@ create-build-deps:
 	@echo "Create Build Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build --region "${REGION}" # Build artifacts, etc
+	sleep 10
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --versioning-configuration Status=Enabled --region "${REGION}"
 	@aws s3 website s3://rig.${OWNER}.${PROJECT}.${REGION}.build/ --index-document index.html --region "${REGION}"
 
@@ -42,6 +44,7 @@ create-app-deps:
 	@echo "Create App S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} --region "${REGION}" # Storage for InfraDev
+	sleep 10
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
 delete-app-deps:
@@ -53,6 +56,7 @@ create-compute-deps:
 	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}"  2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Compute configs
+	sleep 10
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
 delete-compute-deps:
@@ -64,6 +68,7 @@ create-db-deps:
 	@echo "Create DB S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}"  2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}  --region "${REGION}" # DB configs
+	sleep 10
 	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
 delete-db-deps:
@@ -155,7 +160,8 @@ create-compute: create-compute-deps upload-compute
 
 ## Create new CF db stack
 create-db: create-db-deps upload-db
-	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"	
+	@echo \"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
                 --region ${REGION} \
                 --disable-rollback \
@@ -165,7 +171,7 @@ create-db: create-db-deps upload-db
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
@@ -190,7 +196,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
-			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --with-decryption | jq -r '.Parameter.Value')" \
+			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
@@ -240,7 +246,7 @@ create-bastion:
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
-			"ParameterKey=Ami,ParameterValue=$(shell aws ec2 describe-images --region ${REGION} --owners 137112412989 | jq '.Images[] | {Name, ImageId} | select(.Name | contains("amzn-ami-hvm")) | select(.Name | contains("gp2")) | select(.Name | contains("rc") | not)' | jq -s 'sort_by(.Name) | reverse | .[0].ImageId' -r)" \
+			"ParameterKey=Ami,ParameterValue=$(shell aws ec2 describe-images --region ${REGION} --owners 137112412989 --output json | jq '.Images[] | {Name, ImageId} | select(.Name | contains("amzn-ami-hvm")) | select(.Name | contains("gp2")) | select(.Name | contains("rc") | not)' | jq -s 'sort_by(.Name) | reverse | .[0].ImageId' -r)" \
 			"ParameterKey=IngressCidr,ParameterValue=$(shell dig +short myip.opendns.com @resolver1.opendns.com)/32" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
@@ -293,7 +299,7 @@ update-db: upload-db
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
 			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
-			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
+			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
@@ -317,7 +323,7 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=BuildArtifactsBucket,ParameterValue=rig.${OWNER}.${PROJECT}.${REGION}.build" \
 			"ParameterKey=GitHubRepo,ParameterValue=${REPO}" \
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
-			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --with-decryption | jq -r '.Parameter.Value')" \
+			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --output json --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
@@ -360,6 +366,7 @@ status-foundation:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
+		--output json \
 		--query "Stacks[][StackStatus] | []" | jq
 
 ## Print Foundation stack's outputs
@@ -367,6 +374,7 @@ outputs-foundation:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-foundation" \
+		--output json \
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Print Compute stack's status
@@ -374,6 +382,7 @@ status-compute:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+		--output json \
 		--query "Stacks[][StackStatus] | []" | jq
 
 ## Print Compute stack's outputs
@@ -381,6 +390,7 @@ outputs-compute:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+		--output json \
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Print DB stack's status
@@ -388,6 +398,7 @@ status-db:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
+		--output json \
 		--query "Stacks[][StackStatus] | []" | jq
 
 ## Print DB stack's outputs
@@ -395,6 +406,7 @@ outputs-db:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
+		--output json \
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Print Environment stacks' status
@@ -408,6 +420,7 @@ status-build:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
+		--output json \
 		--query "Stacks[][StackStatus] | []" | jq
 
 
@@ -416,6 +429,7 @@ outputs-build:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-build-${REPO}-${REPO_BRANCH}" \
+		--output json \
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Print app stack's status
@@ -423,6 +437,7 @@ status-app:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
+		--output json \
 		--query "Stacks[][StackStatus] | []" | jq
 
 ## Print app stack's outputs
@@ -430,6 +445,7 @@ outputs-app:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "$${OWNER}-${PROJECT}-${ENV}-app-${REPO}-${REPO_BRANCH}" \
+		--output json \
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Print Bastion stack's status
@@ -437,6 +453,7 @@ status-bastion:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" \
+		--output json \
 		--query "Stacks[][StackStatus] | []" | jq
 
 ## Print Bastion stack's outputs
@@ -444,6 +461,7 @@ outputs-bastion:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
 		--stack-name "${OWNER}-${PROJECT}-${ENV}-bastion" \
+		--output json \
 		--query "Stacks[][Outputs] | []" | jq
 
 ## Deletes the Foundation CF stack
