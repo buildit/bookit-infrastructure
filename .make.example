@@ -1,8 +1,7 @@
-DOMAIN = example.tld
-KEY_NAME = username-us-east-1-keypair
-OWNER = jdoe
+DOMAIN = buildit.tools
+KEY_NAME = <your-region-keypair>
+OWNER = <jdoe>
 PROFILE = default
-PROJECT = mycoolproject
-REGION = us-east-1
+PROJECT = bookit
+REGION = <us-east-1>
 DOMAIN_CERT = 0663e927-e990-4157-aef9-7dea87faa6ec
-REPO_TOKEN = 1234567890abcdef

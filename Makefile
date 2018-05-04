@@ -160,7 +160,7 @@ create-compute: create-compute-deps upload-compute
 
 ## Create new CF db stack
 create-db: create-db-deps upload-db
-	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"	
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-db-aurora" \
                 --region ${REGION} \
                 --disable-rollback \
