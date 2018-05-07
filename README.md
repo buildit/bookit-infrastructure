@@ -79,8 +79,16 @@ Those executing these instructions must have basic-to-intermediate knowledge of 
 For using this repo you'll need:
 
 * AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`.
+
+### Setting up your `.make` file
+This rig flavor uses `make` (yes, you read that right) to automate the creation of riglets.  Thus,
+it is _super-important_ to get your `.make` file set up properly.  You can either do this via an
+automated setup, or by doing some file manipulation. 
+
+#### Automated setup (recommended for first-timers)
 * Setup minimal `.make` for local settings interactively through `make .make` (recommended!).
 * Confirm everything is valid with `make check-env`!
+* There are extra notification parameters you might want to set after the fact:  EMAIL_ADDRESS and SLACK_WEBHOOK.
 
 ---
 #### `.make` file Expert mode
@@ -113,7 +121,9 @@ SLACK_WEBHOOK = <optional> (webhook address to post build notifications)
 There are a couple of scripts that automate the detailed steps covered further down.  They hide the
 details, which is both a good and bad thing.
 
-* `./create-standard-riglet.sh` to create a full riglet with standard environments (integration/staging/production).
+* `./create-standard-riglet.sh` to create a full riglet with standard environments (integration/staging/production). You will be asked some questions, the answers of which populate parameters in AWS' SSM Param Store. _Please take special note of the following_:
+  * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
+  * There are special cases to take into account, so _pay close attention to the prompts_.  
 * `./delete-standard-riglet.sh` to delete it all.
 
 
@@ -128,7 +138,9 @@ installation is:
 
 ###### Execution/runtime Infrastructure and Environments
 
-* Run `make create-deps`
+* Run `make create-deps`.  This creates additional parameters in AWS' SSM Param Store.  Please take special note of the following:
+  * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
+  * There are special cases to take into account, so _pay close attention to the prompts_.
 * Run `make create-environment ENV=integration` (runs `create-foundation`, `create-compute`, `create-db`)
 * Run `make create-environment ENV=staging`
 * Run `make create-environment ENV=production`
@@ -301,3 +313,4 @@ PREFIX =
 EMAIL_ADDRESS = u9o1x0a2t4y0g0k1@wiprodigital.slack.com
 SLACK_WEBHOOK = https://hooks.slack.com/services/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$
 ```
+_(Blank PREFIX forces 'preferred' (short) URL to be created for web app and service)_
