@@ -78,45 +78,41 @@ Those executing these instructions must have basic-to-intermediate knowledge of 
 
 For using this repo you'll need:
 
-* AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`
-* Setup `.make` for local settings
+* AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`.
 
-This can either be done by copying settings from the template `.make.example`
-and save in a new file `.make`:
+### Setting up your `.make` file
+This rig flavor uses `make` (yes, you read that right) to automate the creation of riglets.  Thus,
+it is _super-important_ to get your `.make` file set up properly.  You can either do this via an
+automated setup, or by doing some file manipulation. 
 
-```ini
-DOMAIN = <Domain to use for Foundation>
-KEY_NAME = <EC2 SSH key name>
-OWNER = <The owner of the stack, either personal or corporate>
-PROFILE = <AWS Profile Name>
-PROJECT = <Project Name>
-REGION = <AWS Region>
-DOMAIN_CERT = <AWS Certificate Manager GUID>
-REPO_TOKEN = <OAuth token to access your github repo>
-PREFIX = <optional> defaults to owner
-EMAIL_ADDRESS = <optional> email address for potential notifications.
-SLACK_WEBHOOK = <optional> webhook address to post build notifications to
-```
+#### Automated setup (recommended for first-timers)
+* Setup minimal `.make` for local settings interactively through `make .make` (recommended!).
+* Confirm everything is valid with `make check-env`!
+* There are extra notification parameters you might want to set after the fact:  EMAIL_ADDRESS and SLACK_WEBHOOK.
 
-Or also done interactively through `make .make`.
-
-For the "real" bookit riglet:
+---
+#### `.make` file Expert mode
+The `.make` file can also be created by copying `.make.example` to `.make` and making changes
+Example `.make` file with suggested values and comments (including optional values).
 
 ```ini
-DOMAIN = buildit.tools
-KEY_NAME = buildit-bookit-ssh-keypair
-OWNER = buildit
-PROFILE = default
-PROJECT = bookit
-REGION = us-east-1
-DOMAIN_CERT = 0663e927-e990-4157-aef9-7dea87faa6ec
-PREFIX =
-EMAIL_ADDRESS = u9o1x0a2t4y0g0k1@wiprodigital.slack.com
-SLACK_WEBHOOK = https://hooks.slack.com/services/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$
-REPO_TOKEN = <ask a teammate>
+DOMAIN = <Domain to use for Foundation> ("buildit.tools" unless you've created a custom zone)
+KEY_NAME = <EC2 SSH key name> (your side of an AWS-generated key pair for the region you'll run in)
+OWNER = <The owner of the stack>  ("buildit" if the "production" stack.  First initial + last name otherwise.)
+PROFILE = <AWS Profile Name> ("default" if you don't have multiple profiles).
+PROJECT = <Project Name> ("bookit" makes the most sense for this project)
+REGION = <AWS Region> (Whatever region you intend to run within.  Some regions don't support all resource types, so the common ones are best)
+DOMAIN_CERT = <AWS Certificate Manager GUID> ("0663e927-e990-4157-aef9-7dea87faa6ec" is already created and is your best starting point)
+PREFIX = <optional> defaults to owner.  (If you're setting up a developer riglet don't include this var at all.)
+EMAIL_ADDRESS = <optional> (email address for potential notifications)
+SLACK_WEBHOOK = <optional> (webhook address to post build notifications)
 ```
 
-Confirm everything is valid with `make check-env`
+[See specific instructions](#Production-Riglet-Notes) for "production" bookit riglet `.make` file.
+
+---
+
+
 
 ### Firing it up
 
@@ -125,7 +121,9 @@ Confirm everything is valid with `make check-env`
 There are a couple of scripts that automate the detailed steps covered further down.  They hide the
 details, which is both a good and bad thing.
 
-* `./create-standard-riglet.sh` to create a full riglet with standard environments (integration/staging/production).
+* `./create-standard-riglet.sh` to create a full riglet with standard environments (integration/staging/production). You will be asked some questions, the answers of which populate parameters in AWS' SSM Param Store. _Please take special note of the following_:
+  * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
+  * There are special cases to take into account, so _pay close attention to the prompts_.  
 * `./delete-standard-riglet.sh` to delete it all.
 
 
@@ -140,7 +138,9 @@ installation is:
 
 ###### Execution/runtime Infrastructure and Environments
 
-* Run `make create-deps`
+* Run `make create-deps`.  This creates additional parameters in AWS' SSM Param Store.  Please take special note of the following:
+  * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
+  * There are special cases to take into account, so _pay close attention to the prompts_.
 * Run `make create-environment ENV=integration` (runs `create-foundation`, `create-compute`, `create-db`)
 * Run `make create-environment ENV=staging`
 * Run `make create-environment ENV=production`
@@ -296,3 +296,21 @@ script and copy the results into the `compute-ecs/main.yaml` template's `AWSRegi
 We are using CloudWatch for centralized logging.  You can find the logs for each environment and application at [here](https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logs:prefix=buildit)
 
 Alarms are generated when ERROR level logs occur.  They currently get sent to the #book-it-notifications channel
+
+## Production Riglet Notes
+
+Following is the `.make` contents for the "real" bookit riglet *(do not use this as an example for development stacks!)*:
+
+```ini
+DOMAIN = buildit.tools
+KEY_NAME = buildit-bookit-ssh-keypair
+OWNER = buildit
+PROFILE = default
+PROJECT = bookit
+REGION = us-east-1
+DOMAIN_CERT = 0663e927-e990-4157-aef9-7dea87faa6ec
+PREFIX =
+EMAIL_ADDRESS = u9o1x0a2t4y0g0k1@wiprodigital.slack.com
+SLACK_WEBHOOK = https://hooks.slack.com/services/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$
+```
+_(Blank PREFIX forces 'preferred' (short) URL to be created for web app and service)_
