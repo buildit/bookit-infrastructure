@@ -213,10 +213,10 @@ We're currently using AWS RDS Aurora MySQL 5.6.x
 
 ## Application specifics
 
-| Application         | ContainerPort  | ContainerMemory | ListenerRulePriority                  |
-| :-------------      | :------------- | :-------------- | :-------------                        |
-| bookit-api          | 8080           | 512             | 300                                   |
-| bookit-client-react | 4200           | 128             | 200 (lower makes it the ALB fallback) |
+| Application         | ContainerPort  | ContainerMemory | ListenerRulePriority                  | Subdomain
+| :-------------      | :------------- | :-------------- | :-------------                        | :--------
+| bookit-api          | 8080           | 512             | 300                                   | usually default to repo name (see create-standard-riglet.sh)
+| bookit-client-react | 4200           | 128             | 200 (lower makes it the ALB fallback) | usually override to "bookit"  (see create-standard-riglet.sh)
 
 ## Scaling
 
