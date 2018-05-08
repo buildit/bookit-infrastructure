@@ -200,6 +200,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN:-`echo ${REPO}`}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
@@ -327,6 +328,7 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --output json --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
+			"ParameterKey=Owner,ParameterValue=${OWNER}" \
 			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN:-`echo ${REPO}`}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \

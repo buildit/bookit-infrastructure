@@ -19,6 +19,9 @@ Parameters:
   GitHubRepo:
     Type: String
 
+  Owner:
+    Type: String
+
   GitHubBranch:
     Type: String
     Default: "master"
@@ -56,6 +59,7 @@ Parameters:
     Type: String
 
   Owner:
+    Description: Person or organization responsible for the running riglet.
     Type: String
 
   SsmNamespacePrefix:
@@ -363,6 +367,7 @@ Resources:
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
+                      "Owner": "${Owner}",
                       "Subdomain": "${Subdomain}",
                       "ContainerPort": "${ContainerPort}",
                       "ContainerMemory": "${ContainerMemory}",

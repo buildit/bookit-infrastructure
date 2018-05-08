@@ -36,6 +36,10 @@ Parameters:
     Description: Name of the application (part of hostname)
     Type: String
 
+  Owner:
+    Description: Person or organization responsible for the running riglet.
+    Type: String
+
   Subdomain:
     Description: The subdomain used to build a host name for the "production/preferred" HTTP listener for this app.
     Type: String
