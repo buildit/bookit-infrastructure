@@ -13,6 +13,8 @@ export DATABASE_NAME ?= ${PROJECT}
 export AWS_PROFILE=${PROFILE}
 export AWS_REGION=${REGION}
 
+export SUBDOMAIN ?= ${REPO}
+
 
 create-foundation-deps:
 	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
@@ -201,7 +203,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Owner,ParameterValue=${OWNER}" \
-			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN:-`echo ${REPO}`}" \
+			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
@@ -329,7 +331,7 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --output json --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
 			"ParameterKey=Owner,ParameterValue=${OWNER}" \
-			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN:-`echo ${REPO}`}" \
+			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
