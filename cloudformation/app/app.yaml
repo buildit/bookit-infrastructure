@@ -364,6 +364,5 @@ Outputs:
     Value: !Sub "https://${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}"
 
   PreferredApplicationUrl:
-    Condition: ShouldCreatePreferredCname
-    Description: Preferred/production URL of the application (matching DNS name must be created/updated manually)
+    Description: Expected preferred/production URL of the application (matching DNS name must be created/updated manually)
     Value: !Sub "https://${Subdomain}.${PublicDomainName}"
