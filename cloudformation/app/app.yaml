@@ -36,10 +36,9 @@ Parameters:
     Description: Name of the application (part of hostname)
     Type: String
 
-  Prefix:
-    Description: Discrimiator for other "owners."  The real environments will be blank
+  Subdomain:
+    Description: The subdomain used to build a host name for the "production/preferred" HTTP listener for this app.
     Type: String
-    Default: ""
 
   ContainerPort:
     Type: Number
@@ -61,9 +60,6 @@ Parameters:
     Default: latest
 
 Conditions:
-  ShouldCreatePreferredCname: !And
-    - !Equals [ !Ref Environment, production ]
-    - !Equals [ !Ref Prefix, "" ]
   ShouldCreateErrorLogAlarm: !Not [ !Equals [ !Ref Environment, integration ] ]
 
 Mappings:
@@ -108,7 +104,7 @@ Resources:
       HostedZoneName: !Sub "${PublicDomainName}."
       Comment: DNS for ELB.
       RecordSets:
-      - Name: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+      - Name: !Sub "${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}."
         Type: A
         AliasTarget:
           HostedZoneId:
@@ -125,7 +121,7 @@ Resources:
       Conditions:
         - Field: host-header
           Values:
-            - !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}"
+            - !Sub "${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}"
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
@@ -139,28 +135,13 @@ Resources:
       Conditions:
         - Field: host-header
           Values:
-            - !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}"
+            - !Sub "${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}"
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
-  PreferredAppDns:
-    Condition: ShouldCreatePreferredCname
-    Type: AWS::Route53::RecordSetGroup
-    Properties:
-      HostedZoneName: !Sub "${PublicDomainName}."
-      Comment: Preferred ProductionDNS for ALB.
-      RecordSets:
-      - Name: !Sub "${Prefix}${ApplicationName}.${PublicDomainName}."
-        Type: A
-        AliasTarget:
-          HostedZoneId:
-            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--CanonicalHostedZoneID"
-          DNSName:
-            Fn::ImportValue: !Sub "${FoundationStackName}--ALB--DNSName"
 
   PreferredListenerRuleHttp:
-    Condition: ShouldCreatePreferredCname
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       ListenerArn:
@@ -169,13 +150,12 @@ Resources:
       Conditions:
         - Field: host-header
           Values:
-            - !Sub "${Prefix}${ApplicationName}.${PublicDomainName}"
+            - !Sub "${Subdomain}.${PublicDomainName}"
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
   PreferredListenerRuleHttps:
-    Condition: ShouldCreatePreferredCname
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       ListenerArn:
@@ -184,58 +164,29 @@ Resources:
       Conditions:
         - Field: host-header
           Values:
-            - !Sub "${Prefix}${ApplicationName}.${PublicDomainName}"
+            - !Sub "${Subdomain}.${PublicDomainName}"
       Actions:
         - TargetGroupArn: !Ref TargetGroup
           Type: forward
 
-  FallbackListenerRuleHttp:
-    Condition: ShouldCreatePreferredCname
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Properties:
-      ListenerArn:
-        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpListener"
-      Priority: !Sub "${ListenerRulePriority}99"
-      Conditions:
-        - Field: host-header
-          Values:
-            - !Sub "*.${PublicDomainName}"
-      Actions:
-        - TargetGroupArn: !Ref TargetGroup
-          Type: forward
-
-  FallbackListenerRuleHttps:
-    Condition: ShouldCreatePreferredCname
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Properties:
-      ListenerArn:
-        Fn::ImportValue: !Sub "${FoundationStackName}--ALB--HttpsListener"
-      Priority: !Sub "${ListenerRulePriority}99"
-      Conditions:
-        - Field: host-header
-          Values:
-            - !Sub "*.${PublicDomainName}"
-      Actions:
-        - TargetGroupArn: !Ref TargetGroup
-          Type: forward
 
   ExternalHealthCheck:
     Type: AWS::Route53::HealthCheck
     Properties:
       HealthCheckConfig:
         Type: HTTPS
-        FullyQualifiedDomainName: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+        FullyQualifiedDomainName: !Sub "${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}."
         EnableSNI: true
         FailureThreshold: 3
       HealthCheckTags:
       - Key: "Name"
-        Value: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+        Value: !Sub "${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}."
 
   ExternalHealthAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       ActionsEnabled: true
-      AlarmName: !Sub "${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}."
+      AlarmName: !Sub "${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}."
       AlarmDescription: "Alarm when site not reachable"
       AlarmActions:
         - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
@@ -250,39 +201,6 @@ Resources:
         - Name: HealthCheckId
           Value: !Ref ExternalHealthCheck
 
-  PreferredExternalHealthCheck:
-    Condition: ShouldCreatePreferredCname
-    Type: AWS::Route53::HealthCheck
-    Properties:
-      HealthCheckConfig:
-        Type: HTTPS
-        FullyQualifiedDomainName: !Sub "${Prefix}${ApplicationName}.${PublicDomainName}."
-        EnableSNI: true
-        FailureThreshold: 3
-      HealthCheckTags:
-      - Key: "Name"
-        Value: !Sub "${Prefix}${ApplicationName}.${PublicDomainName}."
-
-  PreferredExternalHealthAlarm:
-    Condition: ShouldCreatePreferredCname
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      ActionsEnabled: true
-      AlarmName: !Sub "${Prefix}${ApplicationName}.${PublicDomainName}."
-      AlarmDescription: "Alarm when preferred site not reachable"
-      AlarmActions:
-        - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-      MetricName: HealthCheckStatus
-      Namespace: AWS/Route53
-      Statistic: Minimum
-      Threshold: 1.0
-      ComparisonOperator: LessThanThreshold
-      Period: 60
-      EvaluationPeriods: 1
-      Dimensions:
-        - Name: HealthCheckId
-          Value: !Ref PreferredExternalHealthCheck
-
   LogErrorCountMetricFilter:
     Condition: ShouldCreateErrorLogAlarm
     Type: AWS::Logs::MetricFilter
@@ -292,7 +210,7 @@ Resources:
       MetricTransformations:
         - MetricValue: 1
           MetricNamespace: Buildit/Application
-          MetricName: !Sub "${Prefix}${ApplicationName}${Environment}ErrorCount"
+          MetricName: !Sub "${Owner}${ApplicationName}${Environment}ErrorCount"
 
   LogErrorCountAlarm:
     Condition: ShouldCreateErrorLogAlarm
@@ -303,7 +221,7 @@ Resources:
       AlarmDescription: "Alarm when application logs an error"
       AlarmActions:
         - Fn::ImportValue: !Sub "${FoundationStackName}--SNS--Topic"
-      MetricName: !Sub "${Prefix}${ApplicationName}${Environment}ErrorCount"
+      MetricName: !Sub "${Owner}${ApplicationName}${Environment}ErrorCount"
       Namespace: Buildit/Application
       Statistic: Sum
       Threshold: 0.0
@@ -439,9 +357,9 @@ Resources:
 Outputs:
   ApplicationUrl:
     Description: URL of the application
-    Value: !Sub "https://${Prefix}${Environment}-${ApplicationName}.${PublicDomainName}"
+    Value: !Sub "https://${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}"
 
   PreferredApplicationUrl:
     Condition: ShouldCreatePreferredCname
-    Description: URL of the application
-    Value: !Sub "https://${Prefix}${ApplicationName}.${PublicDomainName}"
+    Description: Preferred/production URL of the application (matching DNS name must be created/updated manually)
+    Value: !Sub "https://${Subdomain}.${PublicDomainName}"

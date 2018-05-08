@@ -6,7 +6,6 @@ export OWNER ?= rig-test-bucket
 export PROFILE ?= default
 export PROJECT ?= projectname
 export REGION ?= us-east-1
-export PREFIX ?= ${OWNER}
 export REPO_BRANCH ?= master
 export DOMAIN_CERT ?= ""
 export DATABASE_NAME ?= ${PROJECT}
@@ -201,7 +200,7 @@ create-build: create-build-deps upload-build upload-lambdas
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
-			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
+			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN:-`echo ${REPO}`}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \
@@ -328,7 +327,7 @@ update-build: upload-build upload-lambdas
 			"ParameterKey=GitHubBranch,ParameterValue=${REPO_BRANCH}" \
 			"ParameterKey=GitHubToken,ParameterValue=$(shell aws ssm get-parameter --name /${OWNER}/${PROJECT}/build/REPO_TOKEN --output json --with-decryption | jq -r '.Parameter.Value')" \
 			"ParameterKey=ApplicationName,ParameterValue=${REPO}" \
-			"ParameterKey=Prefix,ParameterValue=${PREFIX}" \
+			"ParameterKey=Subdomain,ParameterValue=${SUBDOMAIN:-`echo ${REPO}`}" \
 			"ParameterKey=ContainerPort,ParameterValue=${CONTAINER_PORT}" \
 			"ParameterKey=ContainerMemory,ParameterValue=${CONTAINER_MEMORY}" \
 			"ParameterKey=ListenerRulePriority,ParameterValue=${LISTENER_RULE_PRIORITY}" \

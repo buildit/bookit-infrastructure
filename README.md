@@ -103,7 +103,6 @@ PROFILE = <AWS Profile Name> ("default" if you don't have multiple profiles).
 PROJECT = <Project Name> ("bookit" makes the most sense for this project)
 REGION = <AWS Region> (Whatever region you intend to run within.  Some regions don't support all resource types, so the common ones are best)
 DOMAIN_CERT = <AWS Certificate Manager GUID> ("0663e927-e990-4157-aef9-7dea87faa6ec" is already created and is your best starting point)
-PREFIX = <optional> defaults to owner.  (If you're setting up a developer riglet don't include this var at all.)
 EMAIL_ADDRESS = <optional> (email address for potential notifications)
 SLACK_WEBHOOK = <optional> (webhook address to post build notifications)
 ```
@@ -157,7 +156,7 @@ the cloud, sort-of).  So what we're doing in this step is creating the build pip
   * CONTAINER_MEMORY is the amount of memory (in MiB) to reserve for this application (e.g. 512).
   * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
   * (optional) REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
-  * (optional) PREFIX is what goes in front of the URI of the application.  Defaults to OWNER but for the "real" riglet should be set to blank (e.g. `PREFIX=`)
+  * (optional) SUBDOMAIN is placed in front of the DOMAIN configured in the .make file when generating ALB listener rules.  Defaults to REPO.
   * (optional) SLACK_WEBHOOK is a slack URL to which build notifications are sent.
     > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks! 
 
