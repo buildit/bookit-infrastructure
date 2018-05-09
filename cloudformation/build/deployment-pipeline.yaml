@@ -19,6 +19,9 @@ Parameters:
   GitHubRepo:
     Type: String
 
+  Owner:
+    Type: String
+
   GitHubBranch:
     Type: String
     Default: "master"
@@ -34,7 +37,7 @@ Parameters:
   ApplicationName:
     Type: String
 
-  Prefix:
+  Subdomain:
     Type: String
 
   ContainerPort:
@@ -56,6 +59,7 @@ Parameters:
     Type: String
 
   Owner:
+    Description: Person or organization responsible for the running riglet.
     Type: String
 
   SsmNamespacePrefix:
@@ -245,7 +249,7 @@ Resources:
         Type: "LINUX_CONTAINER"
         EnvironmentVariables:
           - Name: ENDPOINT_URI
-            Value: !Sub "https://${Prefix}integration-${ApplicationName}.${PublicDomainName}"
+            Value: !Sub "https://${Owner}-integration-${ApplicationName}.${PublicDomainName}"
           - Name: REPOSITORY_URI
             Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}"
           - Name: BRANCH
@@ -363,7 +367,8 @@ Resources:
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
-                      "Prefix": "${Prefix}",
+                      "Owner": "${Owner}",
+                      "Subdomain": "${Subdomain}",
                       "ContainerPort": "${ContainerPort}",
                       "ContainerMemory": "${ContainerMemory}",
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
@@ -414,7 +419,8 @@ Resources:
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
-                      "Prefix": "${Prefix}",
+                      "Owner": "${Owner}",
+                      "Subdomain": "${Subdomain}",
                       "ContainerPort": "${ContainerPort}",
                       "ContainerMemory": "${ContainerMemory}",
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
@@ -457,7 +463,8 @@ Resources:
                       "PublicDomainName": "${PublicDomainName}",
                       "Repository": "${Repository}",
                       "ApplicationName": "${ApplicationName}",
-                      "Prefix": "${Prefix}",
+                      "Owner": "${Owner}",
+                      "Subdomain": "${Subdomain}",
                       "ContainerPort": "${ContainerPort}",
                       "ContainerMemory": "${ContainerMemory}",
                       "TaskDesiredCount": "${EnvironmentTaskDesiredCount}",
