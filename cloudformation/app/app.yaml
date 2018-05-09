@@ -64,6 +64,8 @@ Parameters:
     Default: latest
 
 Conditions:
+  ShouldCreatePreferredCname: !Equals [ !Ref Environment, production ]
+
   ShouldCreateErrorLogAlarm: !Not [ !Equals [ !Ref Environment, integration ] ]
 
 Mappings:
@@ -146,6 +148,7 @@ Resources:
 
 
   PreferredListenerRuleHttp:
+    Condition: ShouldCreatePreferredCname
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       ListenerArn:
@@ -160,6 +163,7 @@ Resources:
           Type: forward
 
   PreferredListenerRuleHttps:
+    Condition: ShouldCreatePreferredCname
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       ListenerArn:
@@ -364,5 +368,6 @@ Outputs:
     Value: !Sub "https://${Owner}-${Environment}-${ApplicationName}.${PublicDomainName}"
 
   PreferredApplicationUrl:
+    Condition: ShouldCreatePreferredCname
     Description: Expected preferred/production URL of the application (matching DNS name must be created/updated manually)
     Value: !Sub "https://${Subdomain}.${PublicDomainName}"
