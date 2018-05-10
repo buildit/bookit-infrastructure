@@ -78,14 +78,6 @@ Mappings:
       BookitDatabaseDdlAuto: update
 
 Resources:
-  # LoadBalancer:
-  #   Type: AWS::CloudFormation::Stack
-  #   Properties:
-  #     TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/load-balancer.yaml
-  #     Parameters:
-  #       FoundationStackName: !Ref FoundationStackName
-  #       DnsHostedZoneName: !Ref PublicDomainName
-  #       DnsSubdomainName: !Sub ${Prefix}${Environment}-${ApplicationName}
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -237,18 +229,6 @@ Resources:
       Period: 60
       EvaluationPeriods: 1
 
-  # ECSService:
-  #   Type: AWS::CloudFormation::Stack
-  #   Properties:
-  #     TemplateURL: !Sub https://s3.amazonaws.com/${InfraDevBucket}/templates/service.yaml
-  #     Parameters:
-  #       Tag: !Sub "${Environment}"
-  #       TaskDesiredCount: 0
-  #       Cluster: !Ref Cluster
-  #       TargetGroup: !GetAtt LoadBalancer.Outputs.TargetGroup
-  #       Repository: !Ref Repository
-  #       ContainerPort: !Ref ContainerPort
-  #       ParameterStoreNamespace: !Ref ParameterStoreNamespace
   ECSServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -323,9 +303,6 @@ Resources:
       ContainerDefinitions:
         - Name: !Ref ApplicationName
           Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}:${Tag}
-          # Command:
-          #   - /bin/sh
-          #   - ./run-in-aws.sh #special bootstrapping startup that pulls secrets from SSM parameter store
           Essential: true
           Memory: !Ref ContainerMemory
           PortMappings:
@@ -353,14 +330,6 @@ Resources:
               Value: !FindInMap [ EnvironmentMap, !Ref Environment, BookitDatabaseDdlAuto ]
             - Name: BOOKIT_REQUIRE_SSL
               Value: true
-            # - Name: BOOKIT_DATABASE_DRIVER
-            #   Value: org.mariadb.jdbc.Driver
-            # - Name: USE_AZURE
-            #   Value: true
-            # - Name: ACTUAL_BOOKIT_API_URL  # This is the actual/true HTTP URL of the running service (DNS Name-based).
-            #   Value: !Ref BookitApiDomainName
-            # - Name: BOOKIT_API_BASE_URL   # This is a logical URL used by the Bookit app itself to define the endpoint it talks to.
-            #   Value: /api  # Mapped to the ACTUAL_BOOKIT_API_URL via a reverse proxy config in nginx.
 
 Outputs:
   ApplicationUrl:
