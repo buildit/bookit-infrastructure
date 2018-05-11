@@ -564,6 +564,18 @@ upload-lambdas:
 	@aws s3 cp lambdas/${OWNER}-${PROJECT}-handlers.zip s3://rig.${OWNER}.${PROJECT}.${REGION}.build/lambdas/
 	@rm lambdas/${OWNER}-${PROJECT}-handlers.zip
 
+## Turns ON termination protection for riglet identified in .make file.
+protect-riglet:
+	@scripts/protect-riglet.sh ${OWNER}-${PROJECT} enable
+
+## Turns OFF termination protection for riglet identified in .make file
+un-protect-riglet:
+	@scripts/protect-riglet.sh ${OWNER}-${PROJECT} disable
+
+## Lists riglet (parent) stacks
+list-riglet-stacks:
+	@scripts/protect-riglet.sh ${OWNER}-${PROJECT} list
+
 check-env:
 ifndef OWNER
 	$(error OWNER is undefined, should be in file .make)
