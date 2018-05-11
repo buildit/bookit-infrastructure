@@ -78,12 +78,12 @@ delete-db-deps:
 		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV} && \
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}
 
-create-deps:
-	@echo "Update SSM build parameters: /${OWNER}/${PROJECT}/build"
+create-deps: check-existing-riglet
+	@echo "Set/update SSM build secrets and parameters: /${OWNER}/${PROJECT}/build"
 	@read -p 'GitHub OAuth Token: (<ENTER> will keep existing) ' REPO_TOKEN; \
 	        [ -z $$REPO_TOKEN ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/build/REPO_TOKEN" --description "GitHub Repo Token" --type "SecureString" --value "$$REPO_TOKEN" --overwrite
 	@echo ""
-	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/integration"
+	@echo "Set/update SSM env parameters: /${OWNER}/${PROJECT}/env/integration"
 	@read -p 'Integration Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/integration/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (integration)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@read -p 'Integration Bookit Database User Password (make same as above): (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
@@ -91,7 +91,7 @@ create-deps:
 	@read -p 'Integration Bookit App Admin/Basic Auth User Password (set to "password" or E2E tests will fail): (<ENTER> will keep existing) ' BOOKIT_ADMIN_PASSWORD; \
 	        [ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/integration/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (integration)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
 	@echo ""
-	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/staging"
+	@echo "Set/update SSM env parameters: /${OWNER}/${PROJECT}/env/staging"
 	@read -p 'Staging Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/staging/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (staging)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@read -p 'Staging Bookit Database User Password (make same as above): (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
@@ -99,13 +99,16 @@ create-deps:
 	@read -p 'Staging Bookit App Admin/Basic Auth User Password: (<ENTER> will keep existing) ' BOOKIT_ADMIN_PASSWORD; \
 	        [ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/staging/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (integration)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
 	@echo ""
-	@echo "Update SSM env parameters: /${OWNER}/${PROJECT}/env/production"
+	@echo "Set/update SSM env parameters: /${OWNER}/${PROJECT}/env/production"
 	@read -p 'Production Aurora Database Master Password: (<ENTER> will keep existing) ' DB_MASTER_PASSWORD; \
 	        [ -z $$DB_MASTER_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/db/production/DB_MASTER_PASSWORD" --description "Aurora Database Master Password (production)" --type "SecureString" --value "$$DB_MASTER_PASSWORD" --overwrite
 	@read -p 'Production Bookit Database User Password (make same as above): (<ENTER> will keep existing) ' BOOKIT_DATABASE_PASSWORD; \
 	        [ -z $$BOOKIT_DATABASE_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_DATABASE_PASSWORD" --description "Bookit Database User Password (production)" --type "SecureString" --value "$$BOOKIT_DATABASE_PASSWORD" --overwrite
 	@read -p 'Production Bookit App Admin/Basic Auth User Password: (<ENTER> will keep existing) ' BOOKIT_ADMIN_PASSWORD; \
 	        [ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (integration)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
+
+check-existing-riglet:
+	@./scripts/protect-riglet.sh ${OWNER}-${PROJECT} list | [ `wc -l` -gt 0 ] && { echo "Riglet '${OWNER}-${PROJECT}' already exists in this region!"; exit 66; } || true
 
 update-deps: create-deps
 

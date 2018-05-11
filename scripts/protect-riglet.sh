@@ -12,7 +12,7 @@ list_stacks() {
     jq '.StackSummaries[] | select(.StackName | startswith('\"${1}\"')) | select(has("ParentId") | not) | select(.StackName | index("-app-") | not) | .StackName' | sed 's/\"//g'
 }
 
-for stack in $(list_stacks ${prefix}); do 
+for stack in $(list_stacks ${prefix}); do
   case "${mode}" in
     enable) echo "Enabling protection: ${stack} "; aws cloudformation update-termination-protection --enable-termination-protection --stack-name $stack;
             ;;
