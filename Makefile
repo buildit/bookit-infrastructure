@@ -15,68 +15,86 @@ export AWS_REGION=${REGION}
 
 export SUBDOMAIN ?= ${REPO}
 
+define wait_for_s3_bucket_creation 
+	@echo "waiting"
+	@aws s3api wait bucket-exists --bucket $(1) --region $(2)
+	@echo "bucket created: $(1)"
+endef
+
+define empty_and_remove_s3_bucket
+	@aws s3api head-bucket --bucket $(1) --region $(2) 2>/dev/null && \
+		scripts/empty-s3-bucket.sh $(1) && \
+		aws s3 rb --force s3://$(1)
+endef
+
+define enable_s3_bucket_versioning 
+	@aws s3api head-bucket --bucket $(1) --region $(2)  2>/dev/null && \
+		aws s3api put-bucket-versioning --bucket $(1)  --region $(2) --versioning-configuration Status=Enabled
+endef
+
+# Create a test s3 bucket for testing wait
+create-s3-bucket-test:
+	$(eval bucket := "rig.${OWNER}.${REGION}.test")
+	@echo "Create Test S3 bucket: $(bucket)"
+	@aws s3api head-bucket --bucket $(bucket) --region "${REGION}"  2>/dev/null || \
+		aws s3 mb s3://$(bucket)  --region "${REGION}" # Foundation configs
+	$(call wait_for_s3_bucket_creation,$(bucket),"${REGION}")
+	@echo "Put bucket versioning $(bucket)"
+	$(call enable_s3_bucket_versioning,$(bucket),"${REGION}")
+	@echo "Now removing: $(bucket)"
+	$(call empty_and_remove_s3_bucket,$(bucket),"${REGION}")
+	
 
 create-foundation-deps:
 	@echo "Create Foundation S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}"  2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}  --region "${REGION}" # Foundation configs
-	sleep 10
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+	$(call wait_for_s3_bucket_creation,"rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}","${REGION}")
+	$(call enable_s3_bucket_versioning,"rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}","${REGION}")
 
 delete-foundation-deps:
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV} && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}
-
+	$(call empty_and_remove_s3_bucket,"rig.${OWNER}.${PROJECT}.${REGION}.foundation.${ENV}","${REGION}")
+	
 create-build-deps:
 	@echo "Create Build Artifacts S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.build"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.build --region "${REGION}" # Build artifacts, etc
-	sleep 10
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --versioning-configuration Status=Enabled --region "${REGION}"
-	sleep 10
+	$(call wait_for_s3_bucket_creation,"rig.${OWNER}.${PROJECT}.${REGION}.build","${REGION}")
+	$(call enable_s3_bucket_versioning,"rig.${OWNER}.${PROJECT}.${REGION}.build","${REGION}")
 	@aws s3 website s3://rig.${OWNER}.${PROJECT}.${REGION}.build/ --index-document index.html --region "${REGION}"
 
 delete-build-deps:
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.build" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.build && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.build
-
+	$(call empty_and_remove_s3_bucket,"rig.${OWNER}.${PROJECT}.${REGION}.build","${REGION}")
+	
 create-app-deps:
 	@echo "Create App S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} --region "${REGION}" # Storage for InfraDev
-	sleep 10
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+	$(call wait_for_s3_bucket_creation,"rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}","${REGION}")
+	$(call enable_s3_bucket_versioning,"rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}","${REGION}")
 
 delete-app-deps:
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV} && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
-
+	$(call empty_and_remove_s3_bucket,"rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}","${REGION}")
+	
 create-compute-deps:
 	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}"  2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Compute configs
-	sleep 10
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+	$(call wait_for_s3_bucket_creation,"rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}","${REGION}")
+	$(call enable_s3_bucket_versioning,"rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}","${REGION}")	
 
 delete-compute-deps:
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV} && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
-
+	$(call empty_and_remove_s3_bucket,"rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}","${REGION}")
+	
 create-db-deps:
 	@echo "Create DB S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}"
 	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}"  2>/dev/null || \
 		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}  --region "${REGION}" # DB configs
-	sleep 10
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+	$(call wait_for_s3_bucket_creation,"rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}","${REGION}")
+	$(call enable_s3_bucket_versioning,"rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}","${REGION}")
 
 delete-db-deps:
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV} && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}
+	$(call empty_and_remove_s3_bucket,"rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}","${REGION}")
 
 create-deps:
 	@echo "Update SSM build parameters: /${OWNER}/${PROJECT}/build"
