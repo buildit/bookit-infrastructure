@@ -80,7 +80,8 @@ Those executing these instructions must have basic-to-intermediate knowledge of 
 * AWS console navigation (there's a lot of it)
 * AWS CLI (there's some of it)
 * AWS services (CloudFormation, EC2, ECS, S3).
-* It is especially important to have some understanding of the ECS service.  It might be a good idea to run through an ECS tutorial before setting up this riglet.
+* It is especially important to have some understanding of the ECS service.  
+  _It might be a good idea to run through an ECS tutorial before setting up this riglet._
 
 ### Dependencies
 
@@ -101,7 +102,7 @@ automated setup, or by doing some file manipulation.
 1. Confirm everything is valid with `make check-env`!
 1. Continue below to fire up your riglet.
 
-See [.make file Expert mode](#`.make`-file-expert-mode) for additional details.
+See [.make file Expert mode](#.make-file-expert-mode) for additional details.
 
 
 #### Riglet Creation and Tear-down
@@ -316,7 +317,7 @@ actually dynamically create "app" stacks in CloudFormation as part of a successf
 represent deployed and running code (they basically map to ECS Services and TaskDefinitions).
 
 
-#### Manually Tearing Down a Riglet
+### Manually Tearing Down a Riglet
 
 The easiest way to tear down a riglet is by running `./delete-standard-riglet.sh`.  
 It will take a long time to execute, mostly because it deletes the riglet's S3 buckets.
