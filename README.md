@@ -99,13 +99,12 @@ automated setup, or by doing some file manipulation.
 ##### Automated setup (recommended for first-timers)
 1. Setup minimal `.make` for local settings interactively through `make .make`.
 1. Confirm everything is valid with `make check-env`!
+1. Continue below to fire up your riglet.
 
 See [.make file Expert mode](#`.make`-file-expert-mode) for additional details.
 
 
-#### Firing it up
-
-##### Feeling Lucky? Uber-scripts!
+#### Riglet Creation and Tear-down
 
 There are a couple of scripts that automate the detailed steps covered further down.  They hide the
 details, which is both a good and bad thing.
@@ -115,31 +114,15 @@ details, which is both a good and bad thing.
   You will be asked some questions, the answers of which populate parameters in AWS' SSM Param Store. _Please take special note of the following_:
   * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
   * There are special cases to take into account, so _pay close attention to the prompts_.  
+* `make protect-riglet` to protect a running riglet (the Cfn stacks, anyway) from unintended deletion (`un-protect-riglet` to reverse.)
 * `./delete-standard-riglet.sh` to delete it all.
 
 See [Individual Makefile Targets](#building-using-individual-makefile-targets) if you want to build up a riglet by hand.
 
----
+See [Manually Tearing Down a Riglet](#manually-tearing-down-a-riglet) if you want to tear down by hand.
 
-#### Tearing it down
 
-The easiest way to tear down a riglet is by running `./delete-standard-riglet.sh`.  
-It will take a long time to execute, mostly because it deletes the riglet's S3 buckets.
-
-To manually delete a running riglet, in order:
-
-* Run `make delete-app ENV=<environment> REPO=<repo_name>` to delete any running App stacks.
-  * if for some reason you deleted the pipeline first, you'll find you can't delete the app stacks because
-    the role under which they were created was deleted with the pipeline. In this case you'll have to create
-    a temporary "god role" and manually delete the app via the `aws cloudformation delete-stack` command,
-    supplying the `--role-arn` override.
-* Run `make delete-build REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
-* Run `make delete-environment ENV=<environment>` to delete the Environment stack (runs `delete-db`, `delete-compute`, `delete-foundation`)
-* Run `make delete-deps` to delete the required SSM parameters.
-
----
-
-### Checking on things
+#### Checking on things
 
 * Watch things happen in the CloudFormation console and elsewhere in AWS, or ...
 * Check the outputs of the activities above with `make outputs-foundation ENV=<environment>`
@@ -331,3 +314,20 @@ the cloud, sort-of).  So what we're doing in this step is creating the build pip
 It gets a little weird here.  You never start an application yourself in this riglet.  The build environments
 actually dynamically create "app" stacks in CloudFormation as part of a successful build.  These app stacks
 represent deployed and running code (they basically map to ECS Services and TaskDefinitions).
+
+
+#### Manually Tearing Down a Riglet
+
+The easiest way to tear down a riglet is by running `./delete-standard-riglet.sh`.  
+It will take a long time to execute, mostly because it deletes the riglet's S3 buckets.
+
+To manually delete a running riglet, in order:
+
+* Run `make delete-app ENV=<environment> REPO=<repo_name>` to delete any running App stacks.
+  * if for some reason you deleted the pipeline first, you'll find you can't delete the app stacks because
+    the role under which they were created was deleted with the pipeline. In this case you'll have to create
+    a temporary "god role" and manually delete the app via the `aws cloudformation delete-stack` command,
+    supplying the `--role-arn` override.
+* Run `make delete-build REPO=<repo_name> REPO_BRANCH=<branch>` to delete the Pipline stack.
+* Run `make delete-environment ENV=<environment>` to delete the Environment stack (runs `delete-db`, `delete-compute`, `delete-foundation`)
+* Run `make delete-deps` to delete the required SSM parameters.
