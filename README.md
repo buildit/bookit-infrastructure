@@ -1,12 +1,16 @@
 # AWS The Rig
 
-This setup will create a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.
+This codebase contains code to create and maintain a CloudFormation, AWS CodePipeline/CodeBuild/CodeDeploy powered Rig on AWS.
+
+Please see [Bookit Production Riglet](https://digitalrig.atlassian.net/wiki/spaces/RIG/pages/169378164/Bookit+Reboot+Riglet+aka+Bookit+Infrastructure+implementation+of+Bare+Metal+Rig) wiki page for details on the running production Bookit Rig.
 
 ## The big picture(s)
 
 Bookit was rebooted in Sept 2017, and we decided to start from scratch.  We did decide to use the Bookit Riglet (implementation of Bare Metal Rig) as a starting point however.
 
-This guide has all the steps for creating a "Bookit riglet instance".  The riglet is capable of doing builds, pushing to docker and deploying the docker images using blue/green deployment.  The major components of this riglet are:
+This guide has all the steps for creating a "Bookit riglet instance".  The riglet is capable of doing builds, pushing to docker and deploying the docker images using blue/green deployment in to ECS.
+
+The major components of this riglet are:
 
 * A "foundational" stack running in Amazon:  1 of these is created for each environment (integration, staging, production, etc)
   * a VPC with the appropriate network elements (gateways, NAT)
@@ -61,7 +65,11 @@ CodePipeline (more detail):
 
 We are documenting our decisions [here](../master/docs/architecture/decisions)
 
+---
+
 ## Setup
+_Please read through and understand these instructions before starting_.  There is a lot of automation, but there are also _a lot_ of details.
+Approaching things incorrectly can result in a non-running riglet that can be tricky to debug if you're not well-versed in the details.
 
 ### Assumptions
 
@@ -76,99 +84,49 @@ Those executing these instructions must have basic-to-intermediate knowledge of 
 
 ### Dependencies
 
-For using this repo you'll need:
+To complete these instructions successfully you'll need:
 
 * AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`.
+* The `jq` utility, which is used often to interpret JSON responses from the AWS CLI.
 
-### Setting up your `.make` file
+### Creating a new Riglet
+
+#### Setting up your `.make` file
 This rig flavor uses `make` (yes, you read that right) to automate the creation of riglets.  Thus,
 it is _super-important_ to get your `.make` file set up properly.  You can either do this via an
 automated setup, or by doing some file manipulation. 
 
-#### Automated setup (recommended for first-timers)
-* Setup minimal `.make` for local settings interactively through `make .make` (recommended!).
-* Confirm everything is valid with `make check-env`!
-* There are extra notification parameters you might want to set after the fact:  EMAIL_ADDRESS and SLACK_WEBHOOK.
+##### Automated setup (recommended for first-timers)
+1. Setup minimal `.make` for local settings interactively through `make .make`.
+1. Confirm everything is valid with `make check-env`!
 
----
-#### `.make` file Expert mode
-The `.make` file can also be created by copying `.make.example` to `.make` and making changes
-Example `.make` file with suggested values and comments (including optional values).
-
-```ini
-DOMAIN = <Domain to use for Foundation> ("buildit.tools" unless you've created a custom zone)
-KEY_NAME = <EC2 SSH key name> (your side of an AWS-generated key pair for the region you'll run in)
-OWNER = <The owner of the stack>  ("buildit" if the "production" stack.  First initial + last name otherwise.)
-PROFILE = <AWS Profile Name> ("default" if you don't have multiple profiles).
-PROJECT = <Project Name> ("bookit" makes the most sense for this project)
-REGION = <AWS Region> (Whatever region you intend to run within.  Some regions don't support all resource types, so the common ones are best)
-DOMAIN_CERT = <AWS Certificate Manager GUID> ("0663e927-e990-4157-aef9-7dea87faa6ec" is already created and is your best starting point)
-EMAIL_ADDRESS = <optional> (email address for potential notifications)
-SLACK_WEBHOOK = <optional> (webhook address to post build notifications)
-```
-
-[See specific instructions](#Production-Riglet-Notes) for "production" bookit riglet `.make` file.
-
----
+See [.make file Expert mode](#`.make`-file-expert-mode) for additional details.
 
 
+#### Firing it up
 
-### Firing it up
-
-#### Feeling Lucky? Uber-scripts!
+##### Feeling Lucky? Uber-scripts!
 
 There are a couple of scripts that automate the detailed steps covered further down.  They hide the
 details, which is both a good and bad thing.
 
-* `./create-standard-riglet.sh` to create a full riglet with standard environments (integration/staging/production). You will be asked some questions, the answers of which populate parameters in AWS' SSM Param Store. _Please take special note of the following_:
+* `./create-standard-riglet.sh` to create a full riglet with standard environments (integration/staging/production).
+  
+  You will be asked some questions, the answers of which populate parameters in AWS' SSM Param Store. _Please take special note of the following_:
   * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
   * There are special cases to take into account, so _pay close attention to the prompts_.  
 * `./delete-standard-riglet.sh` to delete it all.
 
+See [Individual Makefile Targets](#building-using-individual-makefile-targets) if you want to build up a riglet by hand.
 
-#### Individual Makefile Targets
+---
 
-If you're not feeling particularly lucky, or you want to understand how things are assembled, or create a custom environment, or what-have-you, follow this guide.
+#### Tearing it down
 
-##### Building it up
+The easiest way to tear down a riglet is by running `./delete-standard-riglet.sh`.  
+It will take a long time to execute, mostly because it deletes the riglet's S3 buckets.
 
-The full build pipeline requires at least integration, staging, and production environments, so the typical
-installation is:
-
-###### Execution/runtime Infrastructure and Environments
-
-* Run `make create-deps`.  This creates additional parameters in AWS' SSM Param Store.  Please take special note of the following:
-  * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
-  * There are special cases to take into account, so _pay close attention to the prompts_.
-* Run `make create-environment ENV=integration` (runs `create-foundation`, `create-compute`, `create-db`)
-* Run `make create-environment ENV=staging`
-* Run `make create-environment ENV=production`
-
-###### Build "Environments"
-
-In this case there's no real "build environment", unless you want to consider AWS services an environment.
-We are using CodePipeline and CodeBuild, which are build _managed services_ run by Amazon (think Jenkins in 
-the cloud, sort-of).  So what we're doing in this step is creating the build pipeline(s) for our code repo(s).
-
-* Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> CONTAINER_MEMORY=<MiB> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
-  * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
-  * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
-  * CONTAINER_MEMORY is the amount of memory (in MiB) to reserve for this application (e.g. 512).
-  * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
-  * (optional) REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
-  * (optional) SUBDOMAIN is placed in front of the DOMAIN configured in the .make file when generating ALB listener rules.  Defaults to REPO.
-  * (optional) SLACK_WEBHOOK is a slack URL to which build notifications are sent.
-    > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks! 
-
-###### Deployed Applications
-
-It gets a little weird here.  You never start an application yourself in this riglet.  The build environments
-actually dynamically create "app" stacks in CloudFormation as part of a successful build.  These app stacks
-represent deployed and running code (they basically map to ECS Services and TaskDefinitions).
-
-##### Tearing it down
-
-To delete a running riglet, in order:
+To manually delete a running riglet, in order:
 
 * Run `make delete-app ENV=<environment> REPO=<repo_name>` to delete any running App stacks.
   * if for some reason you deleted the pipeline first, you'll find you can't delete the app stacks because
@@ -179,15 +137,24 @@ To delete a running riglet, in order:
 * Run `make delete-environment ENV=<environment>` to delete the Environment stack (runs `delete-db`, `delete-compute`, `delete-foundation`)
 * Run `make delete-deps` to delete the required SSM parameters.
 
+---
+
 ### Checking on things
 
+* Watch things happen in the CloudFormation console and elsewhere in AWS, or ...
 * Check the outputs of the activities above with `make outputs-foundation ENV=<environment>`
 * Check the status of the activities above with `make status-foundation ENV=<environment>`
+
+And ...
 * Check AWS CloudWatch Logs for application logs.  In the Log Group Filter box search
   for for `<owner>-<application>` (at a minimum).  You can then drill down on the appropriate
   log group and individual log streams.
 
-## Environment specifics
+---
+
+## Additional Tech Details
+
+### Environment specifics
 
 For simplicity's sake, the templates don't currently allow a lot of flexibility in network CIDR ranges.
 The assumption at this point is that these VPCs are self-contained and "sealed off" and thus don't need
@@ -201,7 +168,7 @@ Obviously, the templates can be updated if necessary.
 | staging        | 10.2.0.0/16    | 10.2.1.0/24,10.2.2.0/24   | 10.2.11.0/24,10.2.12.0/24  |
 | production     | 10.3.0.0/16    | 10.3.1.0/24,10.3.2.0/24   | 10.3.11.0/24,10.3.12.0/24  |
 
-## Database specifics
+### Database specifics
 
 We're currently using AWS RDS Aurora MySQL 5.6.x
 
@@ -211,12 +178,14 @@ We're currently using AWS RDS Aurora MySQL 5.6.x
 | staging        | mysql://aurora.bookit.internal/bookit | 10.2.100.0/24,10.2.110.0/24   |
 | production     | mysql://aurora.bookit.internal/bookit | 10.3.100.0/24,10.3.110.0/24   |
 
-## Application specifics
+### Application specifics
 
 | Application         | ContainerPort  | ContainerMemory | ListenerRulePriority                  | Subdomain
 | :-------------      | :------------- | :-------------- | :-------------                        | :--------
 | bookit-api          | 8080           | 512             | 300                                   | usually default to repo name (see create-standard-riglet.sh)
 | bookit-client-react | 4200           | 128             | 200 (lower makes it the ALB fallback) | usually override to "bookit"  (see create-standard-riglet.sh)
+
+---
 
 ## Scaling
 
@@ -256,6 +225,8 @@ And here are the available *database* scaling parameters.
 | Size of RDS Instances | Vertical      | db-aurora     | InstanceType                                                                |
 | # of RDS Instances    | Vertical      | db-aurora     | _currently via Replication property in Mappings inside db-aurora/main.yaml_ |
 
+---
+
 ## Troubleshooting
 
 There are a number of strategies to troubleshoot issues.  In addition to monitoring and searching the AWS Console and Cloudwatch Logs, you can SSH into the VPC via a Bastion:
@@ -270,6 +241,8 @@ Once inside the VPC, you can connect to any of the services you need.
 
 Don't forget to tear down the Bastion when you are finished:
 `make delete-bastion ENV=<integration|staging|production>`
+
+---
 
 ## Maintenance
 
@@ -296,20 +269,65 @@ We are using CloudWatch for centralized logging.  You can find the logs for each
 
 Alarms are generated when ERROR level logs occur.  They currently get sent to the #book-it-notifications channel
 
-## Production Riglet Notes
+---
 
-Following is the `.make` contents for the "real" bookit riglet *(do not use this as an example for development stacks!)*:
+## Appendix
+
+
+---
+### `.make` file Expert mode
+The `.make` file can also be created by copying `.make.example` to `.make` and making changes
+Example `.make` file with suggested values and comments (including optional values).
 
 ```ini
-DOMAIN = buildit.tools
-KEY_NAME = buildit-bookit-ssh-keypair
-OWNER = buildit
-PROFILE = default
-PROJECT = bookit
-REGION = us-east-1
-DOMAIN_CERT = 0663e927-e990-4157-aef9-7dea87faa6ec
-PREFIX =
-EMAIL_ADDRESS = u9o1x0a2t4y0g0k1@wiprodigital.slack.com
-SLACK_WEBHOOK = https://hooks.slack.com/services/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$
+DOMAIN = <Domain to use for Foundation> ("buildit.tools" unless you've created a custom zone)
+KEY_NAME = <EC2 SSH key name> (your side of an AWS-generated key pair for the region you'll run in)
+OWNER = <The owner of the stack>  (First initial + last name.)
+PROFILE = <AWS Profile Name> ("default" if you don't have multiple profiles).
+PROJECT = <Project Name> ("bookit" makes the most sense for this project)
+REGION = <AWS Region> (Whatever region you intend to run within.  Some regions don't support all resource types, so the common ones are best)
+DOMAIN_CERT = <AWS Certificate Manager GUID> ("0663e927-e990-4157-aef9-7dea87faa6ec" is already created for `us-east-` and is your best starting point)
+EMAIL_ADDRESS = <optional> (Email address for potential notifications.  Recommended only for production riglets.)
+SLACK_WEBHOOK = <optional> (Webhook address to post build notifications  Recommended only for production riglets.)
 ```
-_(Blank PREFIX forces 'preferred' (short) URL to be created for web app and service)_
+
+
+### Building using Individual Makefile Targets
+
+If you're not feeling particularly lucky, or you want to understand how things are assembled, or create a custom environment, or what-have-you, follow this guide.
+
+#### Building it up
+
+The full build pipeline requires at least integration, staging, and production environments, so the typical
+installation is:
+
+##### Execution/runtime Infrastructure and Environments
+
+* Run `make create-deps`.  This creates additional parameters in AWS' SSM Param Store.  Please take special note of the following:
+  * You will need a personal Github repo token.  Please see http://tinyurl.com/yb5lxtr6
+  * There are special cases to take into account, so _pay close attention to the prompts_.
+* Run `make create-environment ENV=integration` (runs `create-foundation`, `create-compute`, `create-db`)
+* Run `make create-environment ENV=staging`
+* Run `make create-environment ENV=production`
+
+##### Build "Environments"
+
+In this case there's no real "build environment", unless you want to consider AWS services an environment.
+We are using CodePipeline and CodeBuild, which are build _managed services_ run by Amazon (think Jenkins in 
+the cloud, sort-of).  So what we're doing in this step is creating the build pipeline(s) for our code repo(s).
+
+* Run `make create-build REPO=<repo_name> CONTAINER_PORT=<port> CONTAINER_MEMORY=<MiB> LISTENER_RULE_PRIORITY=<priority>`, same options for status: `make status-build` and outputs `make outputs-build`
+  * REPO is the repo that hangs off buildit organization (e.g "bookit-api")
+  * CONTAINER_PORT is the port that the application exposes (e.g. 8080)
+  * CONTAINER_MEMORY is the amount of memory (in MiB) to reserve for this application (e.g. 512).
+  * LISTENER_RULE_PRIORITY is the priority of the the rule that gets created in the ALB.  While these won't ever conflict, ALB requires a unique number across all apps that share the ALB.  See [Application specifics](#application-specifics)
+  * (optional) REPO_BRANCH is the branch name for the repo - MUST NOT CONTAIN SLASHES!
+  * (optional) SUBDOMAIN is placed in front of the DOMAIN configured in the .make file when generating ALB listener rules.  Defaults to REPO.
+  * (optional) SLACK_WEBHOOK is a slack URL to which build notifications are sent.
+    > If not included, no notifications are sent.  Be aware of this when issuing `make create-update` commands on existing stacks! 
+
+##### Deployed Applications
+
+It gets a little weird here.  You never start an application yourself in this riglet.  The build environments
+actually dynamically create "app" stacks in CloudFormation as part of a successful build.  These app stacks
+represent deployed and running code (they basically map to ECS Services and TaskDefinitions).
