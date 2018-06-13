@@ -108,7 +108,7 @@ create-deps: check-existing-riglet
 	        [ -z $$BOOKIT_ADMIN_PASSWORD ] || aws ssm put-parameter --region ${REGION} --name "/${OWNER}/${PROJECT}/env/production/BOOKIT_ADMIN_PASSWORD" --description "Bookit Admin User Password (production)" --type "SecureString" --value "$$BOOKIT_ADMIN_PASSWORD" --overwrite
 
 check-existing-riglet:
-	@./scripts/protect-riglet.sh ${OWNER}-${PROJECT} list | [ `wc -l` -gt 0 ] && { echo "Riglet '${OWNER}-${PROJECT}' already exists in this region!"; exit 66; } || true
+	@./scripts/protect-riglet.sh ${OWNER}-${PROJECT} ${REGION} list | [ `wc -l` -gt 0 ] && { echo "Riglet '${OWNER}-${PROJECT}' already exists in this region!"; exit 66; } || true
 
 update-deps: create-deps
 
@@ -569,15 +569,15 @@ upload-lambdas:
 
 ## Turns ON termination protection for riglet identified in .make file.
 protect-riglet:
-	@scripts/protect-riglet.sh ${OWNER}-${PROJECT} enable
+	@scripts/protect-riglet.sh ${OWNER}-${PROJECT} ${REGION} enable
 
 ## Turns OFF termination protection for riglet identified in .make file
 un-protect-riglet:
-	@scripts/protect-riglet.sh ${OWNER}-${PROJECT} disable
+	@scripts/protect-riglet.sh ${OWNER}-${PROJECT} ${REGION} disable
 
 ## Lists riglet (parent) stacks
 list-riglet-stacks:
-	@scripts/protect-riglet.sh ${OWNER}-${PROJECT} list
+	@scripts/protect-riglet.sh ${OWNER}-${PROJECT} ${REGION} list
 
 check-env:
 ifndef OWNER
