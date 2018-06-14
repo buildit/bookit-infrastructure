@@ -41,7 +41,7 @@ Parameters:
     Description: DB admin password
     Type: String
     AllowedPattern: "[a-zA-Z0-9\\!\\#\\$\\%\\^\\&\\*\\(\\)\\[\\]\\{\\}\\-\\_\\+\\=\\?\\>\\<\\,\\.\\:\\;\\'\\~|]+"
-    ConstraintDescription: "must not contain /, @, or \""
+    ConstraintDescription: "must be between 8 and 41 characters inclusive and must not contain /, @, or \""
     MaxLength: '41'
     MinLength: '8'
     NoEcho: 'true'
