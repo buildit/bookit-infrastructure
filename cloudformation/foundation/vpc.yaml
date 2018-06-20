@@ -64,7 +64,7 @@ Resources:
     Properties:
       VpcId:
         Ref: VPC
-      AvailabilityZone: !Select [ 0, !GetAZs ]
+      AvailabilityZone: !Select [ 1, !GetAZs ]
       CidrBlock: !Select [ 0, !Ref SubnetPublicCidrBlocks ]
       MapPublicIpOnLaunch: true
       Tags:
@@ -76,7 +76,7 @@ Resources:
     Properties:
       VpcId:
         Ref: VPC
-      AvailabilityZone: !Select [ 0, !GetAZs ]
+      AvailabilityZone: !Select [ 1, !GetAZs ]
       CidrBlock: !Select [ 0, !Ref SubnetPrivateCidrBlocks ]
       Tags:
         - Key: Name
@@ -87,7 +87,7 @@ Resources:
     Properties:
       VpcId:
         Ref: VPC
-      AvailabilityZone: !Select [ 1, !GetAZs ]
+      AvailabilityZone: !Select [ 2, !GetAZs ]
       CidrBlock: !Select [ 1, !Ref SubnetPublicCidrBlocks ]
       MapPublicIpOnLaunch: true
       Tags:
@@ -99,7 +99,7 @@ Resources:
     Properties:
       VpcId:
         Ref: VPC
-      AvailabilityZone: !Select [ 1, !GetAZs ]
+      AvailabilityZone: !Select [ 2, !GetAZs ]
       CidrBlock: !Select [ 1, !Ref SubnetPrivateCidrBlocks ]
       Tags:
         - Key: Name

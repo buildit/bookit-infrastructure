@@ -55,16 +55,16 @@ delete-app-deps:
 		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.app.${ENV}
 
 create-compute-deps:
-	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}"
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}"  2>/dev/null || \
-		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}  --region "${REGION}" # Compute configs
+	@echo "Create Compute S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.compute-eks.${ENV}"
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-eks.${ENV}" --region "${REGION}"  2>/dev/null || \
+		aws s3 mb s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-eks.${ENV}  --region "${REGION}" # Compute configs
 	sleep 60
-	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
+	@aws s3api put-bucket-versioning --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-eks.${ENV}" --versioning-configuration Status=Enabled --region "${REGION}"
 
 delete-compute-deps:
-	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}" --region "${REGION}" 2>/dev/null && \
-		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV} && \
-		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}
+	@aws s3api head-bucket --bucket "rig.${OWNER}.${PROJECT}.${REGION}.compute-eks.${ENV}" --region "${REGION}" 2>/dev/null && \
+		scripts/empty-s3-bucket.sh rig.${OWNER}.${PROJECT}.${REGION}.compute-eks.${ENV} && \
+		aws s3 rb --force s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-eks.${ENV}
 
 create-db-deps:
 	@echo "Create DB S3 bucket: rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}"
@@ -151,11 +151,11 @@ create-foundation: create-foundation-deps upload-foundation
 
 ## Create new CF compute stack
 create-compute: create-compute-deps upload-compute
-	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-compute-ecs stack"
-	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+	@echo "Creating ${OWNER}-${PROJECT}-${ENV}-compute-eks stack"
+	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-eks" \
                 --region ${REGION} \
                 --disable-rollback \
-		--template-body "file://cloudformation/compute-ecs/main.yaml" \
+		--template-body "file://cloudformation/compute-eks/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
@@ -164,7 +164,7 @@ create-compute: create-compute-deps upload-compute
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
+	@aws cloudformation wait stack-create-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-eks" --region ${REGION}
 
 ## Create new CF db stack
 create-db: create-db-deps upload-db
@@ -176,7 +176,7 @@ create-db: create-db-deps upload-db
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
-			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-eks" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION}  --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
@@ -252,7 +252,7 @@ create-bastion:
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
-			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-eks" \
 			"ParameterKey=SshKeyName,ParameterValue=${KEY_NAME}" \
 			"ParameterKey=Ami,ParameterValue=$(shell aws ec2 describe-images --region ${REGION} --owners 137112412989 --output json | jq '.Images[] | {Name, ImageId} | select(.Name | contains("amzn-ami-hvm")) | select(.Name | contains("gp2")) | select(.Name | contains("rc") | not)' | jq -s 'sort_by(.Name) | reverse | .[0].ImageId' -r)" \
 			"ParameterKey=IngressCidr,ParameterValue=$(shell dig +short myip.opendns.com @resolver1.opendns.com)/32" \
@@ -283,10 +283,10 @@ update-foundation: upload-foundation
 
 ## Update CF compute stack
 update-compute: upload-compute
-	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-compute-ecs stack"
-	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-compute-eks stack"
+	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-eks" \
                 --region ${REGION} \
-		--template-body "file://cloudformation/compute-ecs/main.yaml" \
+		--template-body "file://cloudformation/compute-eks/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
@@ -295,7 +295,7 @@ update-compute: upload-compute
 		--tags \
 			"Key=Owner,Value=${OWNER}" \
 			"Key=Project,Value=${PROJECT}"
-	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}
+	@aws cloudformation wait stack-update-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-eks" --region ${REGION}
 
 update-db: upload-db
 	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-db-aurora stack"
@@ -305,7 +305,7 @@ update-db: upload-db
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=FoundationStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-foundation" \
-			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+			"ParameterKey=ComputeStackName,ParameterValue=${OWNER}-${PROJECT}-${ENV}-compute-eks" \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
 			"ParameterKey=MasterPassword,ParameterValue=\"$(shell aws ssm get-parameter --region ${REGION} --output json --name /${OWNER}/${PROJECT}/db/${ENV}/DB_MASTER_PASSWORD --with-decryption | jq -r '.Parameter.Value')\"" \
 			"ParameterKey=DatabaseName,ParameterValue=${DATABASE_NAME}" \
@@ -390,7 +390,7 @@ outputs-foundation:
 status-compute:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
-		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-eks" \
 		--output json \
 		--query "Stacks[][StackStatus] | []" | jq
 
@@ -398,7 +398,7 @@ status-compute:
 outputs-compute:
 	@aws cloudformation describe-stacks \
                 --region ${REGION} \
-		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
+		--stack-name "${OWNER}-${PROJECT}-${ENV}-compute-eks" \
 		--output json \
 		--query "Stacks[][Outputs] | []" | jq
 
@@ -485,8 +485,8 @@ delete-foundation: delete-foundation-stack delete-foundation-deps
 ## Deletes the Compute CF stack
 delete-compute-stack:
 	@if ${MAKE} .prompt-yesno message="Are you sure you wish to delete the ${ENV} Compute Stack?"; then \
-		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs"; \
-		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" --region ${REGION}; \
+		aws cloudformation delete-stack --region ${REGION} --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-eks"; \
+		aws cloudformation wait stack-delete-complete --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-eks" --region ${REGION}; \
 	fi
 
 delete-compute: delete-compute-stack delete-compute-deps
@@ -545,13 +545,13 @@ upload-app: upload-app-deployment
 
 ## Upload app-deployment scripts to S3
 # Uploads the build support scripts to the build-support bucket.  These scripts can be used by external
-# build tools (Jenkins, Travis, etc.) to push images to ECR, deploy to ECS, etc.
+# build tools (Jenkins, Travis, etc.) to push images to ECR, deploy to eks, etc.
 upload-app-deployment:
 #	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}/app-deployment/
 
-## Upload Compute ECS Templates
+## Upload Compute eks Templates
 upload-compute:
-	@aws s3 cp --recursive cloudformation/compute-ecs/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}/templates/
+	@aws s3 cp --recursive cloudformation/compute-eks/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-eks.${ENV}/templates/
 
 upload-db:
 	@aws s3 cp --recursive cloudformation/db-aurora/ s3://rig.${OWNER}.${PROJECT}.${REGION}.db-aurora.${ENV}/templates/
