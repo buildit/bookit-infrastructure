@@ -51,6 +51,10 @@ Parameters:
     Type: Number
     Default: 128
 
+  ContainerCpu:
+    Type: Number
+    Default: 256
+
   TaskDesiredCount:
     Type: Number
     Default: 0
@@ -95,6 +99,7 @@ Resources:
       TargetGroupAttributes:
         - Key: deregistration_delay.timeout_seconds
           Value: 30
+      TargetType: ip
 
   AppEnvDns:
     Type: AWS::Route53::RecordSetGroup
@@ -249,12 +254,21 @@ Resources:
     Properties:
       Cluster:
         Fn::ImportValue: !Sub "${ComputeStackName}--Cluster"
-      Role: !Ref ECSServiceRole
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::ImportValue: !Sub "${ComputeStackName}--AppSecurityGroup"
+          Subnets:
+            - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateA"
+            - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateB"
+      HealthCheckGracePeriodSeconds: 600
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
       DesiredCount: !Ref TaskDesiredCount
       TaskDefinition: !Ref TaskDefinition
-      PlacementStrategies:
-        - Type: spread
-          Field: host
       LoadBalancers:
         - ContainerName: !Ref ApplicationName
           ContainerPort: !Ref ContainerPort
@@ -278,6 +292,8 @@ Resources:
                 "Action": [ "sts:AssumeRole" ]
             }]
         }
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceTaskExecutionRole
       Policies:
         - PolicyName: root
           PolicyDocument:
@@ -299,6 +315,12 @@ Resources:
     Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Sub ${AWS::StackName}-${ApplicationName}
+      Cpu: !Ref 'ContainerCpu'
+      Memory: !Ref 'ContainerMemory'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !Ref TaskDefinitionServiceRole
       TaskRoleArn: !Ref TaskDefinitionServiceRole
       ContainerDefinitions:
         - Name: !Ref ApplicationName
