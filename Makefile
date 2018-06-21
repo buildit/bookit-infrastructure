@@ -155,7 +155,7 @@ create-compute: create-compute-deps upload-compute
 	@aws cloudformation create-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
                 --disable-rollback \
-		--template-body "file://cloudformation/compute-ecs/main.yaml" \
+		--template-body "file://cloudformation/compute-ecs-fargate/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
@@ -286,7 +286,7 @@ update-compute: upload-compute
 	@echo "Updating ${OWNER}-${PROJECT}-${ENV}-compute-ecs stack"
 	@aws cloudformation update-stack --stack-name "${OWNER}-${PROJECT}-${ENV}-compute-ecs" \
                 --region ${REGION} \
-		--template-body "file://cloudformation/compute-ecs/main.yaml" \
+		--template-body "file://cloudformation/compute-ecs-fargate/main.yaml" \
 		--capabilities CAPABILITY_NAMED_IAM \
 		--parameters \
 			"ParameterKey=Environment,ParameterValue=${ENV}" \
@@ -545,11 +545,11 @@ upload-app: upload-app-deployment
 
 ## Upload app-deployment scripts to S3
 # Uploads the build support scripts to the build-support bucket.  These scripts can be used by external
-# build tools (Jenkins, Travis, etc.) to push images to ECR, deploy to ECS, etc.
+# build tools (Jenkins, Travis, etc.) to push images to ECR, deploy to ecs, etc.
 upload-app-deployment:
 #	@aws s3 cp --recursive app-deployment/ s3://rig.${OWNER}.${PROJECT}.${REGION}.build-support.${ENV}/app-deployment/
 
-## Upload Compute ECS Templates
+## Upload Compute ecs Templates
 upload-compute:
 	@aws s3 cp --recursive cloudformation/compute-ecs/ s3://rig.${OWNER}.${PROJECT}.${REGION}.compute-ecs.${ENV}/templates/
 
