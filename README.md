@@ -88,7 +88,7 @@ Those executing these instructions must have basic-to-intermediate knowledge of 
 To complete these instructions successfully you'll need:
 
 * AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`.
-* The `jq` utility, which is used often to interpret JSON responses from the AWS CLI.
+* The `jq` utility, which is used often to interpret JSON responses from the AWS CLI: `brew install jq`.
 
 ### Creating a new Riglet
 
