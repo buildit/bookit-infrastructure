@@ -88,7 +88,8 @@ Those executing these instructions must have basic-to-intermediate knowledge of 
 To complete these instructions successfully you'll need:
 
 * AWS CLI (v1.11.57 minimum), and credentials working: `brew install awscli && aws configure`.
-* The `jq` utility, which is used often to interpret JSON responses from the AWS CLI.
+* The `jq` utility, which is used often to interpret JSON responses from the AWS CLI: `brew install jq`.
+* Ensure that you have your own private key pair setup on AWS - the name of the key will be used in the .make file. See [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html#having-ec2-create-your-key-pair) for instructions.
 
 ### Creating a new Riglet
 
@@ -133,6 +134,9 @@ And ...
 * Check AWS CloudWatch Logs for application logs.  In the Log Group Filter box search
   for for `<owner>-<application>` (at a minimum).  You can then drill down on the appropriate
   log group and individual log streams.
+* Check that applications have successfully deployed - AWS -> CloudFormation -> Select your application or 
+  API stack, and view the URLs available under "Outputs", e.g. for the API application `https://XXXX-integration-bookit-api.buildit.tools/v1/ping`
+  where XXXX is the Owner name as specified in the .make file.
 
 ---
 
