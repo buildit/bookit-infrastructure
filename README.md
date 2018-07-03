@@ -134,6 +134,9 @@ And ...
 * Check AWS CloudWatch Logs for application logs.  In the Log Group Filter box search
   for for `<owner>-<application>` (at a minimum).  You can then drill down on the appropriate
   log group and individual log streams.
+* Check that applications have successfully deployed - AWS -> CloudFormation -> Select your application or 
+  API stack, and view the URLs available under "Outputs", e.g. for the API application `https://XXXX-integration-bookit-api.buildit.tools/v1/ping`
+  where XXXX is the Owner name as specified in the .make file.
 
 ---
 
