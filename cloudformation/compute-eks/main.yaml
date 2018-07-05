@@ -29,6 +29,11 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
 
 Mappings:
+  AWSRegionToAMI:
+    us-east-1:
+      AMI: ami-dea4d5a1
+    us-west-2:
+      AMI: ami-73a6e20b
   EnvironmentMap:
     integration:
       ClusterSize: 1
@@ -36,6 +41,15 @@ Mappings:
       ClusterSize: 2
     production:
       ClusterSize: 2
+  MaxPodsPerNode:
+    t2.small:
+      MaxPods: 8
+    t2.medium:
+      MaxPods: 17
+    t2.large:
+      MaxPods: 35
+    t2.xlarge:
+      MaxPods: 44
 
 Resources:
   EKSRole:
@@ -53,12 +67,6 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonEKSServicePolicy
         - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
-  # InstanceProfile:
-  #   Type: AWS::IAM::InstanceProfile
-  #   Properties:
-  #     Path: /
-  #     Roles:
-  #       - !Ref ECSRole
 
   ControlPlaneSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
@@ -82,84 +90,159 @@ Resources:
       RoleArn: !GetAtt EKSRole.Arn
       Version: "1.10"
 
-  # AutoScalingGroup:
-  #   Type: AWS::AutoScaling::AutoScalingGroup
-  #   Properties:
-  #     VPCZoneIdentifier:
-  #       - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateA"
-  #       - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateB"
-  #     LaunchConfigurationName: !Ref LaunchConfiguration
-  #     MinSize: !FindInMap [ EnvironmentMap, !Ref Environment, ClusterSize ]
-  #     MaxSize: !Ref ClusterMaxSize
-  #     DesiredCapacity: !FindInMap [ EnvironmentMap, !Ref Environment, ClusterSize ]
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Sub ${FoundationStackName}--ECSHost
-  #         PropagateAtLaunch: true
-  #   CreationPolicy:
-  #     ResourceSignal:
-  #       Timeout: PT15M
-  #   UpdatePolicy:
-  #     AutoScalingRollingUpdate:
-  #       MinInstancesInService: 1
-  #       MaxBatchSize: 1
-  #       PauseTime: PT15M
-  #       WaitOnResourceSignals: true
+  NodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - !Ref NodeInstanceRole
 
-  # LaunchConfiguration:
-  #   Type: AWS::AutoScaling::LaunchConfiguration
-  #   Metadata:
-  #     AWS::CloudFormation::Init:
-  #       config:
-  #         commands:
-  #           01_add_instance_to_cluster:
-  #               command: !Sub echo ECS_CLUSTER=${Cluster} > /etc/ecs/ecs.config
-  #         files:
-  #           "/etc/cfn/cfn-hup.conf":
-  #             mode: 000400
-  #             owner: root
-  #             group: root
-  #             content: !Sub |
-  #               [main]
-  #               stack=${AWS::StackId}
-  #               region=${AWS::Region}
-  #           "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
-  #             content: !Sub |
-  #               [cfn-auto-reloader-hook]
-  #               triggers=post.update
-  #               path=Resources.ContainerInstances.Metadata.AWS::CloudFormation::Init
-  #               action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
-  #         services:
-  #           sysvinit:
-  #             cfn-hup:
-  #               enabled: true
-  #               ensureRunning: true
-  #               files:
-  #                 - /etc/cfn/cfn-hup.conf
-  #                 - /etc/cfn/hooks.d/cfn-auto-reloader.conf
-  #   Properties:
-  #     ImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", AMI ]
-  #     InstanceType: !Ref InstanceType
-  #     KeyName: !Ref SshKeyName
-  #     IamInstanceProfile: !Ref InstanceProfile
-  #     SecurityGroups:
-  #       - !Ref SecurityGroup
-  #     UserData:
-  #       "Fn::Base64": !Sub |
-  #         #!/bin/bash
-  #         yum install -y aws-cfn-bootstrap
-  #         /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
-  #         /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
+  NodeInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
 
+  NodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for all nodes in the cluster
+      VpcId:
+        Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+
+  NodeSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow node to communicate with each other
+      GroupId: !Ref NodeSecurityGroup
+      SourceSecurityGroupId: !Ref NodeSecurityGroup
+      IpProtocol: '-1'
+      FromPort: 0
+      ToPort: 65535
+
+  NodeSecurityGroupFromControlPlaneIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow worker Kubelets and pods to receive communication from the cluster control plane
+      GroupId: !Ref NodeSecurityGroup
+      SourceSecurityGroupId: !Ref ControlPlaneSecurityGroup
+      IpProtocol: tcp
+      FromPort: 1025
+      ToPort: 65535
+
+  ControlPlaneEgressToNodeSecurityGroup:
+    Type: AWS::EC2::SecurityGroupEgress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow the cluster control plane to communicate with worker Kubelet and pods
+      GroupId: !Ref ControlPlaneSecurityGroup
+      DestinationSecurityGroupId: !Ref NodeSecurityGroup
+      IpProtocol: tcp
+      FromPort: 1025
+      ToPort: 65535
+
+  ControlPlaneSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow pods to communicate with the cluster API Server
+      GroupId: !Ref ControlPlaneSecurityGroup
+      SourceSecurityGroupId: !Ref NodeSecurityGroup
+      IpProtocol: tcp
+      ToPort: 443
+      FromPort: 443
+
+  NodeGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      DesiredCapacity: !FindInMap [ EnvironmentMap, !Ref Environment, ClusterSize ]
+      LaunchConfigurationName: !Ref NodeLaunchConfig
+      MinSize: !FindInMap [ EnvironmentMap, !Ref Environment, ClusterSize ]
+      MaxSize: !Ref ClusterMaxSize
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateA"
+        - Fn::ImportValue: !Sub "${FoundationStackName}--SubnetPrivateB"
+      Tags:
+        - Key: Name
+          Value: !Sub ${FoundationStackName}--EKSHost
+          PropagateAtLaunch: true
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: '1'
+        MaxBatchSize: '1'
+
+  NodeLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", AMI ]
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref NodeInstanceProfile
+      KeyName: !Ref SshKeyName
+      SecurityGroups:
+      - !Ref NodeSecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Join: [
+            "",
+            [
+              "#!/bin/bash -xe\n",
+              "CA_CERTIFICATE_DIRECTORY=/etc/kubernetes/pki", "\n",
+              "CA_CERTIFICATE_FILE_PATH=$CA_CERTIFICATE_DIRECTORY/ca.crt", "\n",
+              "MODEL_DIRECTORY_PATH=~/.aws/eks", "\n",
+              "MODEL_FILE_PATH=$MODEL_DIRECTORY_PATH/eks-2017-11-01.normal.json", "\n",
+              "mkdir -p $CA_CERTIFICATE_DIRECTORY", "\n",
+              "mkdir -p $MODEL_DIRECTORY_PATH", "\n",
+              "curl -o $MODEL_FILE_PATH https://s3-us-west-2.amazonaws.com/amazon-eks/1.10.3/2018-06-05/eks-2017-11-01.normal.json", "\n",
+              "aws configure add-model --service-model file://$MODEL_FILE_PATH --service-name eks", "\n",
+              "aws eks describe-cluster --region=", { Ref: "AWS::Region" }," --name=", { Ref: Cluster }," --query 'cluster.{certificateAuthorityData: certificateAuthority.data, endpoint: endpoint}' > /tmp/describe_cluster_result.json", "\n",
+              "cat /tmp/describe_cluster_result.json | grep certificateAuthorityData | awk '{print $2}' | sed 's/[,\"]//g' | base64 -d >  $CA_CERTIFICATE_FILE_PATH", "\n",
+              "MASTER_ENDPOINT=$(cat /tmp/describe_cluster_result.json | grep endpoint | awk '{print $2}' | sed 's/[,\"]//g')", "\n",
+              "INTERNAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)", "\n",
+              "sed -i s,MASTER_ENDPOINT,$MASTER_ENDPOINT,g /var/lib/kubelet/kubeconfig", "\n",
+              "sed -i s,CLUSTER_NAME,", { Ref: Cluster }, ",g /var/lib/kubelet/kubeconfig", "\n",
+              "sed -i s,REGION,", { Ref: "AWS::Region" }, ",g /etc/systemd/system/kubelet.service", "\n",
+              "sed -i s,MAX_PODS,", { "Fn::FindInMap": [ MaxPodsPerNode, { Ref: InstanceType }, MaxPods ] }, ",g /etc/systemd/system/kubelet.service", "\n",
+              "sed -i s,MASTER_ENDPOINT,$MASTER_ENDPOINT,g /etc/systemd/system/kubelet.service", "\n",
+              "sed -i s,INTERNAL_IP,$INTERNAL_IP,g /etc/systemd/system/kubelet.service", "\n",
+              "DNS_CLUSTER_IP=10.100.0.10", "\n",
+              "if [[ $INTERNAL_IP == 10.* ]] ; then DNS_CLUSTER_IP=172.20.0.10; fi", "\n",
+              "sed -i s,DNS_CLUSTER_IP,$DNS_CLUSTER_IP,g  /etc/systemd/system/kubelet.service", "\n",
+              "sed -i s,CERTIFICATE_AUTHORITY_FILE,$CA_CERTIFICATE_FILE_PATH,g /var/lib/kubelet/kubeconfig" , "\n",
+              "sed -i s,CLIENT_CA_FILE,$CA_CERTIFICATE_FILE_PATH,g  /etc/systemd/system/kubelet.service" , "\n",
+              "systemctl daemon-reload", "\n",
+              "systemctl restart kubelet", "\n",
+              "/opt/aws/bin/cfn-signal -e $? ",
+              "         --stack ", { Ref: "AWS::StackName" },
+              "         --resource NodeGroup ",
+              "         --region ", { Ref: "AWS::Region" }, "\n"
+            ]
+          ]
 
 Outputs:
   ClusterName:
     Export:
       Name: !Sub "${AWS::StackName}--Cluster"
     Value: !Ref Cluster
+  NodeInstanceRole:
+    Description: The node instance role
+    Value: !GetAtt NodeInstanceRole.Arn
   # AppSecurityGroup:
   #   Export:
   #     Name: !Sub "${AWS::StackName}--AppSecurityGroup"
-  #   Value: !Ref SecurityGroup
+  #   Value: !Ref NodeSecurityGroup
   # AutoScalingGroup:
-  #   Value: !Ref AutoScalingGroup
+  #   Value: !Ref NodeGroup
