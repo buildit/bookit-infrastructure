@@ -121,6 +121,9 @@ Resources:
       GroupDescription: Security group for all nodes in the cluster
       VpcId:
         Fn::ImportValue: !Sub "${FoundationStackName}--VpcId"
+      Tags:
+      - Key: !Sub "kubernetes.io/cluster/${Cluster}"
+        Value: 'owned'
 
   NodeSecurityGroupIngress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -180,6 +183,9 @@ Resources:
         - Key: Name
           Value: !Sub ${FoundationStackName}--EKSHost
           PropagateAtLaunch: true
+        - Key: !Sub 'kubernetes.io/cluster/${Cluster}'
+          Value: 'owned'
+          PropagateAtLaunch: 'true'
     UpdatePolicy:
       AutoScalingRollingUpdate:
         MinInstancesInService: '1'
@@ -240,9 +246,9 @@ Outputs:
   NodeInstanceRole:
     Description: The node instance role
     Value: !GetAtt NodeInstanceRole.Arn
-  # AppSecurityGroup:
-  #   Export:
-  #     Name: !Sub "${AWS::StackName}--AppSecurityGroup"
-  #   Value: !Ref NodeSecurityGroup
+  AppSecurityGroup:
+    Export:
+      Name: !Sub "${AWS::StackName}--AppSecurityGroup"
+    Value: !Ref NodeSecurityGroup
   # AutoScalingGroup:
   #   Value: !Ref NodeGroup

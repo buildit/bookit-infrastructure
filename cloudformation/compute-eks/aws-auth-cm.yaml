@@ -5,7 +5,7 @@ metadata:
   namespace: kube-system
 data:
   mapRoles: |
-    - rolearn: arn:aws:iam::006393696278:role/aochsner-bookit-integration-compu-NodeInstanceRole-1GX4RNTD3I988
+    - rolearn: <ARN of instance role (not instance profile)>
       username: system:node:{{EC2PrivateDNSName}}
       groups:
         - system:bootstrappers
