@@ -43,7 +43,7 @@ Resources:
     Properties:
       LoadBalancerArn: !Ref LoadBalancer
       Certificates:
-        - CertificateArn: !Sub "arn:aws:acm:${AWS::Region}:006393696278:certificate/${DomainCertGuid}"
+        - CertificateArn: !Sub "arn:aws:acm:${AWS::Region}:${AWS::AccountId}:certificate/${DomainCertGuid}"
       Port: 443
       Protocol: HTTPS
       DefaultActions:
