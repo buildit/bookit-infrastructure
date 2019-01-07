@@ -233,21 +233,7 @@ Resources:
       ComparisonOperator: GreaterThanThreshold
       Period: 60
       EvaluationPeriods: 1
-
-  ECSServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Path: /
-      AssumeRolePolicyDocument: |
-        {
-            "Statement": [{
-                "Effect": "Allow",
-                "Principal": { "Service": [ "ecs.amazonaws.com" ]},
-                "Action": [ "sts:AssumeRole" ]
-            }]
-        }
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole
+       
 
   Service:
     Type: AWS::ECS::Service
@@ -292,8 +278,6 @@ Resources:
                 "Action": [ "sts:AssumeRole" ]
             }]
         }
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceTaskExecutionRole
       Policies:
         - PolicyName: root
           PolicyDocument:
@@ -310,6 +294,22 @@ Resources:
                 Action:
                   - ssm:GetParameters
                   - ssm:GetParametersByPath
+        - PolicyName: ExtraECSPOlicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                # Allow the ECS Tasks to download images from ECR
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchGetImage'
+
+                  # Allow the ECS tasks to upload logs to CloudWatch
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
 
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
