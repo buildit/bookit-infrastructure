@@ -320,16 +320,8 @@ Resources:
               Value: !Ref AWS::Region
             - Name: AWS_ENV_PATH
               Value: !Ref SsmEnvironmentNamespace
-            - Name: BOOKIT_DATABASE_USER
-              Value: admin
-            - Name: BOOKIT_DATABASE_URL
-              Value: "jdbc:mariadb:aurora://aurora.bookit.internal/bookit"
-            - Name: BOOKIT_DATABASE_DIALECT
-              Value: org.hibernate.dialect.MySQL55Dialect
             - Name: BOOKIT_DATABASE_DDL_AUTO
               Value: !FindInMap [ EnvironmentMap, !Ref Environment, BookitDatabaseDdlAuto ]
-            - Name: BOOKIT_REQUIRE_SSL
-              Value: true
 
 Outputs:
   ApplicationUrl:
