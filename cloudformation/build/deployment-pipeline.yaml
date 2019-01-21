@@ -263,10 +263,10 @@ Resources:
       Name: !Join [ '-', [ !Ref AppStackName, !Ref GitHubRepo, !Ref GitHubBranch, 'e2e', 'test' ] ]
       ServiceRole: !Ref CodeBuildServiceRole
 
-  Pipeline:
+  BuildPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      Name: !Sub "${AWS::StackName}-pipeline"
+      Name: !Sub "${AWS::StackName}-buildpipeline"
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
       ArtifactStore:
         Type: S3
@@ -288,45 +288,7 @@ Resources:
               OutputArtifacts:
                 - Name: App
               RunOrder: 1
-            - Name: AppIntegrationTemplate
-              ActionTypeId:
-                Category: Source
-                Owner: AWS
-                Version: 1
-                Provider: S3
-              OutputArtifacts:
-                - Name: IntegrationTemplate
-              RunOrder: 1
-              Configuration:
-                S3Bucket: !Sub "${InfraDevBucketBase}.integration"
-                S3ObjectKey: "templates/templates.zip"
-              RunOrder: 1
-            - Name: AppStagingTemplate
-              ActionTypeId:
-                Category: Source
-                Owner: AWS
-                Version: 1
-                Provider: S3
-              OutputArtifacts:
-                - Name: StagingTemplate
-              RunOrder: 1
-              Configuration:
-                S3Bucket: !Sub "${InfraDevBucketBase}.staging"
-                S3ObjectKey: "templates/templates.zip"
-              RunOrder: 1
-            - Name: AppProductionTemplate
-              ActionTypeId:
-                Category: Source
-                Owner: AWS
-                Version: 1
-                Provider: S3
-              OutputArtifacts:
-                - Name: ProductionTemplate
-              RunOrder: 1
-              Configuration:
-                S3Bucket: !Sub "${InfraDevBucketBase}.production"
-                S3ObjectKey: "templates/templates.zip"
-              RunOrder: 1
+          
         - Name: Build
           Actions:
             - Name: Build
@@ -341,6 +303,109 @@ Resources:
                 - Name: App
               OutputArtifacts:
                 - Name: BuildOutput
+              RunOrder: 1
+        - Name: WriteOutput
+          Actions:
+            - Name: WriteBuildJson
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              Configuration:
+                BucketName: !Ref BuildArtifactsBucket
+                Extract: false
+                ObjectKey: latestbuild/build.json
+              InputArtifacts:
+                - Name: BuildOutput
+            - Name: WriteSourceOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              Configuration:
+                BucketName: !Ref BuildArtifactsBucket
+                Extract: false
+                ObjectKey: latestbuild/src.zip
+              InputArtifacts:
+                - Name: App
+
+      
+  DeployPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub "${AWS::StackName}-deploypipeline"
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref BuildArtifactsBucket
+      DisableInboundStageTransitions: 
+        - 
+          StageName: Integration
+          Reason: "Pipeline disabled on initial deployment"
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: BuildOutput
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              OutputArtifacts:
+                - Name: BuildOutput
+              Configuration:
+                S3Bucket: !Ref BuildArtifactsBucket
+                S3ObjectKey: latestbuild/build.json
+              RunOrder: 1
+            - Name: BuildSrc
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              OutputArtifacts:
+                - Name: App
+              Configuration:
+                S3Bucket: !Ref BuildArtifactsBucket
+                S3ObjectKey: latestbuild/src.zip
+              RunOrder: 1    
+            - Name: AppIntegrationTemplate
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              OutputArtifacts:
+                - Name: IntegrationTemplate
+              Configuration:
+                S3Bucket: !Sub "${InfraDevBucketBase}.integration"
+                S3ObjectKey: "templates/templates.zip"
+              RunOrder: 1     
+            - Name: AppStagingTemplate
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              OutputArtifacts:
+                - Name: StagingTemplate
+              Configuration:
+                S3Bucket: !Sub "${InfraDevBucketBase}.staging"
+                S3ObjectKey: "templates/templates.zip"
+              RunOrder: 1
+            - Name: AppProductionTemplate
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              OutputArtifacts:
+                - Name: ProductionTemplate
+              Configuration:
+                S3Bucket: !Sub "${InfraDevBucketBase}.production"
+                S3ObjectKey: "templates/templates.zip"
               RunOrder: 1
         - Name: Integration
           Actions:
@@ -511,14 +576,14 @@ Resources:
         SlackWebhook: !Ref SlackWebhook
         Project: !Ref Project
         Owner: !Ref Owner
-        Pipeline: !Ref Pipeline
+        Pipeline: !Ref BuildPipeline
         ReportsUrl: !Sub "http://${BuildArtifactsBucket}.s3-website-${AWS::Region}.amazonaws.com/${AWS::StackName}/reports"
         PipelineUrl: !Join
           - ''
           - - 'https://console.aws.amazon.com/codepipeline/home?region='
             - !Ref 'AWS::Region'
             - '#/view/'
-            - !Ref Pipeline
+            - !Ref BuildPipeline
 
 Outputs:
   PipelineUrl:
@@ -528,7 +593,7 @@ Outputs:
       - - 'https://console.aws.amazon.com/codepipeline/home?region='
         - !Ref 'AWS::Region'
         - '#/view/'
-        - !Ref Pipeline
+        - !Ref BuildPipeline
 
   ReportsUrl:
     Description: Build Reports URL
